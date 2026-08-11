@@ -34,6 +34,7 @@ import type { AddFavoriteRequest } from './generated/schemas/addFavoriteRequest'
 import type { AddParticipantsRequest } from './generated/schemas/addParticipantsRequest';
 import type { AddPinRequest } from './generated/schemas/addPinRequest';
 import type { AgentChannelLogResponse } from './generated/schemas/agentChannelLogResponse';
+import type { AgentSessionResponse } from './generated/schemas/agentSessionResponse';
 import type { AnchorResponse } from './generated/schemas/anchorResponse';
 import type { ApiActivity } from './generated/schemas/apiActivity';
 import type { ApiChannelAttachmentsPage } from './generated/schemas/apiChannelAttachmentsPage';
@@ -942,6 +943,15 @@ export const storageServiceClient = {
         `/agent-sessions/channel/${channel_id}/log`,
         { method: 'GET' }
       )
+    ).map((result) => result);
+  },
+
+  async getAgentSession(args: { session_id: string }) {
+    const { session_id } = args;
+    return (
+      await dssFetch<AgentSessionResponse>(`/agent-sessions/${session_id}`, {
+        method: 'GET',
+      })
     ).map((result) => result);
   },
 
