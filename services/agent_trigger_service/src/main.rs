@@ -4,6 +4,7 @@ mod config;
 
 use agent_session::outbound::postgres::PgAgentSessionRepo;
 use agent_trigger::domain::service::{AgentBotLookup, AgentTriggerService};
+use agent_trigger::outbound::{FastModelTriggerJudge, LexicalReplyDetector};
 use anyhow::Context as _;
 use bots::domain::models::BotId;
 use bots::domain::ports::BotRepo as _;
@@ -11,11 +12,13 @@ use bots::outbound::pg_bots_repo::PgBotsRepo;
 use channels::domain::broker_events::{ChannelMacroEvent, ChannelTopicEvent};
 use config::Config;
 use kafka_util::{GroupName, KafkaEventConsumer};
+use lexical_client::LexicalClient;
 use macro_entrypoint::{MacroEntrypoint, shutdown_signal};
 use macro_event_broker::{
     KafkaConsumerAdapter, KafkaEventPublisher, MacroEvent as _, MacroEventBroker as _,
     MacroEventBrokerService, MacroEventCollection as _, MacroEventConsumerService,
 };
+use macro_service_urls::LexicalServiceUrl;
 use rdkafka::consumer::CommitMode;
 use rdkafka::message::{BorrowedMessage, Message as _};
 use sqlx::postgres::PgPoolOptions;
@@ -62,9 +65,15 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("failed to connect to macrodb")?;
 
+    let lexical = LexicalClient::new(
+        config.internal_api_key.clone(),
+        LexicalServiceUrl::new()?.to_string(),
+    );
     let trigger = AgentTriggerService::new(
         PgAgentSessionRepo::new(pool.clone()),
-        PgAgentBotLookup(PgBotsRepo::new(pool)),
+        PgAgentBotLookup(PgBotsRepo::new(pool.clone())),
+        LexicalReplyDetector::new(lexical),
+        FastModelTriggerJudge::new(ai_usage::pg_recorder(pool)),
     );
     let publisher = MacroEventBrokerService::new(
         KafkaEventPublisher::new(config.kafka_brokers.as_ref())?,

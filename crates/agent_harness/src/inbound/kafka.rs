@@ -70,6 +70,7 @@ pub fn agent_trigger_to_harness_command(
             ChannelEventMetadata {
                 bot_id,
                 session_id,
+                kind: _,
                 message,
             },
         )) => {
