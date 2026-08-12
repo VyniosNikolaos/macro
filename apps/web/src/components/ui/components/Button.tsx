@@ -57,12 +57,12 @@ export type ButtonVariant =
 
 const variantStyles: Record<ButtonVariant, string> = {
   danger:
-    'bg-transparent text-failure border border-failure/50 not-disabled:hover:bg-failure/10 not-disabled:active:bg-failure/20 disabled:opacity-30 ',
+    'bg-transparent text-failure border border-failure/50 not-disabled:hover:bg-failure-bg not-disabled:active:bg-failure-hover disabled:opacity-30 ',
   base: 'bg-transparent text-ink-muted border border-edge-muted not-disabled:hover:bg-hover not-disabled:hover:text-ink active:bg-active disabled:opacity-30 ',
   active:
-    'bg-accent-bg not-disabled:hover:bg-accent/30 text-accent disabled:opacity-30 ',
+    'bg-accent-bg not-disabled:hover:bg-accent-hover text-accent disabled:opacity-30 ',
   success:
-    'bg-success-bg not-disabled:hover:bg-success/30 text-success disabled:opacity-30 ',
+    'bg-success-bg not-disabled:hover:bg-success-hover text-success disabled:opacity-30 ',
   ghost:
     'bg-transparent text-ink-muted not-disabled:hover:bg-hover not-disabled:hover:text-ink active:bg-active disabled:opacity-30 ',
   contrast:

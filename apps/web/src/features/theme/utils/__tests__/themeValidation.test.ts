@@ -133,4 +133,19 @@ describe('isThemeV2', () => {
     delete data.depth;
     expect(isThemeV2(data)).toBe(false);
   });
+
+  it('accepts flat VNext color tokens', () => {
+    const data = JSON.parse(validThemeJson);
+    data.colorTokens = {
+      'surface-0': '#000000',
+      chrome: 'var(--color-surface-5)',
+    };
+    expect(isThemeV2(data)).toBe(true);
+  });
+
+  it('rejects non-string VNext color token values', () => {
+    const data = JSON.parse(validThemeJson);
+    data.colorTokens = { accent: 42 };
+    expect(isThemeV2(data)).toBe(false);
+  });
 });

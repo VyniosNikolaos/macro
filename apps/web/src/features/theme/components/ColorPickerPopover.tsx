@@ -162,7 +162,9 @@ export function ColorPickerPopover(props: {
         setIsSetByInput(true);
         props.onL(next.l || 0);
         props.onC(next.c || 0);
-        props.onH(next.h || 0);
+        // White, black, and gray have no defined hue. Preserve the picker's
+        // current hue so adding chroma does not jump back to red.
+        if (next.c > 0.0001) props.onH(next.h || 0);
       });
       setHexInvalid(false);
     } catch (error) {

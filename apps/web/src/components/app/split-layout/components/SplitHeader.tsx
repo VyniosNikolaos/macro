@@ -513,7 +513,7 @@ export function SplitHeader(props: {
           isMobile() &&
             !isNativeMobilePlatform() &&
             'mobile:top-[calc(var(--safe-top)+6px)]',
-          isEntityDraggingOver() && 'bg-active/50'
+          isEntityDraggingOver() && 'bg-active'
         )}
         data-split-header
         ref={mergeRefs(droppable, props.ref)}

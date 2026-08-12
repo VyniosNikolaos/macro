@@ -45,8 +45,78 @@ export type ThemePrevious = {
   c4: { l: number; c: number; h: number };
 };
 
-export const semanticTokens = ['page', 'panel', 'inset', 'dialog', 'menu', 'input', 'message', 'hover', 'active', 'button', 'chrome'] as const;
+export const surfaceTokens = [
+  'surface-0',
+  'surface-1',
+  'surface-2',
+  'surface-3',
+  'surface-4',
+  'surface-5',
+] as const;
+
+export const contentTokens = [
+  'content-0',
+  'content-1',
+  'content-2',
+  'content-3',
+  'content-4',
+] as const;
+
+export const edgeTokens = ['edge', 'edge-muted', 'edge-subtle'] as const;
+
+export const paletteTokens = [
+  'red',
+  'orange',
+  'amber',
+  'yellow',
+  'lime',
+  'green',
+  'teal',
+  'cyan',
+  'blue',
+  'violet',
+  'purple',
+  'pink',
+] as const;
+
+export const inputColorTokens = [
+  ...surfaceTokens,
+  ...contentTokens,
+  ...edgeTokens,
+  'accent',
+  ...paletteTokens,
+] as const;
+
+export type InputColorToken = (typeof inputColorTokens)[number];
+
+export const semanticTokens = [
+  'surface',
+  'inset',
+  'lift',
+  'ink',
+  'ink-muted',
+  'ink-subtle',
+  'ink-disabled',
+  'ink-placeholder',
+  'page',
+  'panel',
+  'dialog',
+  'menu',
+  'input',
+  'input-focus',
+  'message',
+  'hover',
+  'active',
+  'selected',
+  'success',
+  'warning',
+  'failure',
+  'chrome',
+] as const;
 export type SemanticToken = (typeof semanticTokens)[number];
+
+/** Flat, serializable source of truth for authored VNext theme colors. */
+export type ThemeColorTokens = Record<string, string>;
 
 type TokenColor = {
   token: SemanticToken,
@@ -60,6 +130,8 @@ export type ThemeV2 = {
   depth: number;
   tokens: ThemeV2Tokens;
   overrides?: TokenColor[];
+  /** VNext input and semantic colors. Legacy themes omit this field. */
+  colorTokens?: ThemeColorTokens;
 };
 
 export type ThemeV2Tokens = {

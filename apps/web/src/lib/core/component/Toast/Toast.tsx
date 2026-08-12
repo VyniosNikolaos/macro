@@ -50,7 +50,7 @@ interface ToastStyle {
 
 const TOAST_STYLES: Record<ToastType, ToastStyle> = {
   [ToastType.SUCCESS]: {
-    background: 'bg-success/10',
+    background: 'bg-success-bg',
     accent: 'bg-success',
     borderColor: 'var(--color-success)',
     titleText: 'text-success-ink',
@@ -61,10 +61,10 @@ const TOAST_STYLES: Record<ToastType, ToastStyle> = {
       hover: 'hover:bg-success/80',
       text: 'text-success-ink',
     },
-    closeButtonHover: 'hover:text-success-ink hover:bg-success/10',
+    closeButtonHover: 'hover:text-success-ink hover:bg-success-hover',
   },
   [ToastType.FAILURE]: {
-    background: 'bg-failure/10',
+    background: 'bg-failure-bg',
     accent: 'bg-failure',
     titleText: 'text-failure-ink',
     borderColor: 'var(--color-failure)',
@@ -75,7 +75,7 @@ const TOAST_STYLES: Record<ToastType, ToastStyle> = {
       hover: 'hover:bg-failure/80',
       text: 'text-failure-ink',
     },
-    closeButtonHover: 'hover:text-failure-ink hover:bg-failure/10',
+    closeButtonHover: 'hover:text-failure-ink hover:bg-failure-hover',
   },
   [ToastType.ALERT]: {
     background: 'bg-alert/10',

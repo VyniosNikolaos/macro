@@ -1233,7 +1233,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                     !isPullRefreshing()
                   }
                 >
-                  <div class="flex items-center gap-2 p-3 text-xs text-text-muted mobile:mt-(--mobile-content-inset-top) mobile:mb-(--mobile-content-inset-bottom)">
+                  <div class="flex items-center gap-2 p-3 text-xs text-ink-muted mobile:mt-(--mobile-content-inset-top) mobile:mb-(--mobile-content-inset-bottom)">
                     <Spinner class="size-3 animate-spin" />
                     Searching...
                   </div>
@@ -1497,7 +1497,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                     source.isFetchingNextPage())
                                 }
                               >
-                                <div class="flex items-center gap-2 p-3 text-xs text-text-muted">
+                                <div class="flex items-center gap-2 p-3 text-xs text-ink-muted">
                                   <Spinner class="size-3 animate-spin" />
                                   {source.isFetchingNextPage()
                                     ? 'Loading more...'

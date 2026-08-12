@@ -1,5 +1,9 @@
 import { isMobile } from '@core/mobile/isMobile';
 import type { ThemeV2 } from './types/themeTypes';
+import {
+  getThemeColorMode,
+  legacyThemeToVNextTokens,
+} from './utils/themeVNext';
 
 export const DEFAULT_LIGHT_THEME: DefaultTheme = 'Macro Light';
 export const DEFAULT_DARK_THEME: DefaultTheme = 'Macro Dark';
@@ -108,7 +112,7 @@ const MACRO_LIGHT: Pick<ThemeV2, 'depth' | 'tokens' | 'overrides'> = isMobile()
 
 // Ordered for the theme picker: dark themes first (led by the Macro brand theme),
 // then light themes (led by the Macro brand theme). ThemeList renders in array order.
-export const DEFAULT_THEMES = [
+const LEGACY_DEFAULT_THEMES = [
   {
     id: 'Macro Dark',
     name: 'Macro Dark',
@@ -369,5 +373,14 @@ export const DEFAULT_THEMES = [
     },
   },
 ] as const satisfies readonly ThemeV2[];
+
+/** Built-in themes retain legacy ramps temporarily, but render from VNext. */
+export const DEFAULT_THEMES = LEGACY_DEFAULT_THEMES.map((theme) => ({
+  ...theme,
+  colorTokens: legacyThemeToVNextTokens(
+    theme,
+    getThemeColorMode(theme.tokens)
+  ),
+})) satisfies ThemeV2[];
 
 type DefaultTheme = (typeof DEFAULT_THEMES)[number]['id'];

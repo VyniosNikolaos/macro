@@ -26,7 +26,7 @@ export function FatalError(props: FatalErrorProps) {
 
             <Show when={props.error} keyed>
               {(error) => (
-                <div class="mb-6 p-3 bg-failure/10 border border-edge rounded text-left">
+                <div class="mb-6 p-3 bg-failure-bg border border-edge rounded text-left">
                   <p class="text-sm text-failure-ink font-mono break-all">
                     {error.message || error.toString()}
                   </p>

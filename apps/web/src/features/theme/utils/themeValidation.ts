@@ -43,6 +43,19 @@ export function isThemeV2(data: unknown): data is ThemeV2 {
     if (!isTokenValue(tokens[key])) return false;
   }
 
+  if (obj.colorTokens !== undefined) {
+    if (typeof obj.colorTokens !== 'object' || obj.colorTokens === null) {
+      return false;
+    }
+    if (
+      !Object.values(obj.colorTokens as Record<string, unknown>).every(
+        (value) => typeof value === 'string'
+      )
+    ) {
+      return false;
+    }
+  }
+
   return true;
 }
 

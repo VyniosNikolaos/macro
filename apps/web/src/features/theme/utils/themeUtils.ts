@@ -1,9 +1,15 @@
-import { currentThemeId, darkModeTheme, lightModeTheme, setCurrentThemeId, setDarkModeTheme, setHtmlColor, setIsThemeSaved, setLightModeTheme, setThemeDepth, setThemeMode, setUserThemes, systemMode, themeDepth, themeMode, themes, userThemes} from '../signals/themeSignals';
-import { semanticTokens, type ThemeV2, type ThemeV2Tokens } from '../types/themeTypes';
+import { currentThemeId, darkModeTheme, lightModeTheme, setCurrentThemeId, setDarkModeTheme, setHtmlColor, setIsThemeSaved, setLightModeTheme, setThemeColorTokens, setThemeDepth, setThemeMode, setUserThemes, systemMode, themeColorTokens, themeDepth, themeMode, themes, userThemes} from '../signals/themeSignals';
+import { semanticTokens, type ThemeColorTokens, type ThemeV2, type ThemeV2Tokens } from '../types/themeTypes';
 import { themeReactive } from '../signals/themeReactive';
 import { toast } from '@core/component/Toast/Toast';
 import { batch, createEffect, on } from 'solid-js';
 import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../constants';
+import {
+  getThemeColorMode,
+  getThemeColorTokens,
+  legacyThemeToVNextTokens,
+} from './themeVNext';
+import { isThemeV2 } from './themeValidation';
 
 export function exportTheme(themeId?: string){
   const id = themeId ?? currentThemeId();
@@ -26,6 +32,7 @@ async function _importTheme(): Promise<void>{
       version: parsed.version,
       depth: parsed.depth,
       tokens: parsed.tokens,
+      colorTokens: parsed.colorTokens,
     };
     setUserThemes([...userThemes(), newTheme]);
     applyTheme(id);
@@ -33,20 +40,6 @@ async function _importTheme(): Promise<void>{
     console.error('Failed to import theme:', e);
     toast.alert('Failed to import theme from clipboard.');
   }
-}
-
-function isThemeV2(value: unknown): value is ThemeV2 {
-  if(typeof value !== 'object' || value === null){return false}
-  const v = value as Record<string, unknown>;
-  if(typeof v.name !== 'string' || typeof v.version !== 'number' || typeof v.depth !== 'number' || typeof v.tokens !== 'object' || v.tokens === null){return false}
-  const tokenKeys: Array<keyof ThemeV2Tokens> = ['a0','a1','a2','a3','a4','b0','b1','b2','b3','b4','c0','c1','c2','c3','c4'];
-  const tokens = v.tokens as Record<string, unknown>;
-  return tokenKeys.every((key) => {
-    const t = tokens[key];
-    if(typeof t !== 'object' || t === null){return false}
-    const tok = t as Record<string, unknown>;
-    return typeof tok.l === 'number' && typeof tok.c === 'number' && typeof tok.h === 'number';
-  });
 }
 
 /** Writes a theme's semantic-token overrides to the document root, clearing
@@ -75,10 +68,36 @@ function setLiveTokens(tokens: ThemeV2Tokens, depth: number): void{
   });
 }
 
+let renderedColorTokenKeys = new Set<string>();
+
+/** Writes all VNext authored tokens to the root and updates editor state. */
+export function setLiveThemeColorTokens(tokens: ThemeColorTokens): void {
+  for (const key of renderedColorTokenKeys) {
+    if (!(key in tokens)) {
+      document.documentElement.style.removeProperty(`--color-${key}`);
+    }
+  }
+  for (const [key, value] of Object.entries(tokens)) {
+    document.documentElement.style.setProperty(`--color-${key}`, value);
+  }
+  renderedColorTokenKeys = new Set(Object.keys(tokens));
+  setThemeColorTokens({ ...tokens });
+}
+
+/** Updates one authored token immediately; persistence still happens on save. */
+export function updateLiveThemeColorToken(token: string, value: string): void {
+  const next = { ...themeColorTokens(), [token]: value };
+  document.documentElement.style.setProperty(`--color-${token}`, value);
+  renderedColorTokenKeys.add(token);
+  setThemeColorTokens(next);
+  setIsThemeSaved(false);
+}
+
 /** The live tokens/overrides as they were when a preview started; restored
  *  when the preview ends. Null while no preview is active. */
 let previewSnapshot: {
   tokens: ThemeV2Tokens;
+  colorTokens: ThemeColorTokens;
   depth: number;
   overrides: Record<string, string>;
 } | null = null;
@@ -95,6 +114,7 @@ export function applyTheme(id: string): void{
   previewSnapshot = null;
 
   setThemeOverrides(theme);
+  setLiveThemeColorTokens(getThemeColorTokens(theme));
   setLiveTokens(theme.tokens, theme.depth ?? 0.15);
   queueMicrotask(() => {/* scuffed af */
     setIsThemeSaved(true);
@@ -117,9 +137,15 @@ export function previewTheme(id: string): void{
     }
     // Snapshot the live tokens (not the selected theme id) so ending the
     // preview restores unsaved in-editor edits too.
-    previewSnapshot = { tokens: getCurrentTokens(), depth: themeDepth(), overrides };
+    previewSnapshot = {
+      tokens: getCurrentTokens(),
+      colorTokens: { ...themeColorTokens() },
+      depth: themeDepth(),
+      overrides,
+    };
   }
   setThemeOverrides(theme);
+  setLiveThemeColorTokens(getThemeColorTokens(theme));
   setLiveTokens(theme.tokens, theme.depth ?? 0.15);
 }
 
@@ -135,6 +161,7 @@ export function clearThemePreview(): void{
       document.documentElement.style.removeProperty(`--theme-${token}`);
     }
   }
+  setLiveThemeColorTokens(previewSnapshot.colorTokens);
   setLiveTokens(previewSnapshot.tokens, previewSnapshot.depth);
   previewSnapshot = null;
 }
@@ -192,6 +219,13 @@ function invertLightness(): void{
 export function flipLightDark(): void{
   invertLightness();
   queueMicrotask(() => {
+    const tokens = getCurrentTokens();
+    setLiveThemeColorTokens(
+      legacyThemeToVNextTokens(
+        { tokens },
+        getThemeColorMode(tokens)
+      )
+    );
     setIsThemeSaved(liveMatchesStoredTheme());
     syncHtmlColor();
   });
@@ -209,7 +243,12 @@ function liveMatchesStoredTheme(): boolean{
     close(live[k].c, stored.tokens[k].c) &&
     close(live[k].h, stored.tokens[k].h)
   );
-  return tokensMatch && close(themeDepth(), stored.depth ?? 0.15);
+  const storedColors = getThemeColorTokens(stored);
+  const liveColors = themeColorTokens();
+  const colorsMatch =
+    Object.keys(storedColors).length === Object.keys(liveColors).length &&
+    Object.entries(storedColors).every(([key, value]) => liveColors[key] === value);
+  return tokensMatch && colorsMatch && close(themeDepth(), stored.depth ?? 0.15);
 }
 
 function getCurrentTokens(): ThemeV2Tokens{
@@ -242,6 +281,7 @@ export function saveTheme(name: string): void{
     version: 2,
     depth: themeDepth(),
     tokens: tokens,
+    colorTokens: { ...themeColorTokens() },
   };
   setUserThemes([...userThemes(), newTheme]);
   setCurrentThemeId(id);
@@ -255,7 +295,13 @@ export function updateTheme(id: string, name: string): void{
   setUserThemes(
     userThemes().map((theme) =>
       theme.id === id
-        ? { ...theme, name, depth: themeDepth(), tokens }
+        ? {
+            ...theme,
+            name,
+            depth: themeDepth(),
+            tokens,
+            colorTokens: { ...themeColorTokens() },
+          }
         : theme
     )
   );
@@ -289,6 +335,7 @@ export function getLiveTheme(): ThemeV2{
     version: 2,
     depth: themeDepth(),
     tokens: getCurrentTokens(),
+    colorTokens: { ...themeColorTokens() },
   };
 }
 

@@ -135,54 +135,125 @@ body.tauri-ios {
      Explicit widths (ring, ring-2, …) are left untouched. */
   --default-ring-width: var(--app-ring-width);
 
-  /* Semantic Color names, use these when writing tailwind */
-  --color-accent:          var(--a0);
-  --color-accent-bg:       oklch(var(--a0) / 0.08);
-  --color-accent-hover:    oklch(var(--a0) / 0.20);
+  /* Input tokens: the only raw colors stored by a VNext theme. */
+  --color-surface-0: var(--b0);
+  --color-surface-1: var(--b1);
+  --color-surface-2: var(--b2);
+  --color-surface-3: var(--b3);
+  --color-surface-4: var(--b4);
+  --color-surface-5: color-mix(in oklch, var(--color-surface-4) 85%, var(--color-content-0));
+  --color-content-0: var(--c0);
+  --color-content-1: var(--c1);
+  --color-content-2: var(--c2);
+  --color-content-3: var(--c3);
+  --color-content-4: var(--c4);
+  --color-edge: var(--color-surface-4);
+  --color-edge-muted: var(--color-surface-3);
+  --color-edge-subtle: var(--color-surface-2);
+  --color-accent: var(--a0);
+  --color-red: oklch(0.65 0.2 25);
+  --color-orange: oklch(0.7 0.2 50);
+  --color-amber: oklch(0.75 0.18 70);
+  --color-yellow: oklch(0.8 0.17 95);
+  --color-lime: oklch(0.75 0.18 125);
+  --color-green: oklch(0.7 0.17 145);
+  --color-teal: oklch(0.7 0.15 175);
+  --color-cyan: oklch(0.75 0.15 205);
+  --color-blue: oklch(0.65 0.2 255);
+  --color-violet: oklch(0.65 0.2 285);
+  --color-purple: oklch(0.65 0.2 310);
+  --color-pink: oklch(0.7 0.2 345);
 
-  --color-surface:         var(--b0);
-  --color-drop-shadow:     oklch(0.15 0 0 / 0.04);
-  --color-overlay:         oklch(0 0 0 / 0.05);
+  /* Component-facing semantic assignments. Layer only changes the first three. */
+  --color-surface: var(--color-surface-0);
+  --color-inset: var(--color-surface-0);
+  --color-lift: var(--color-surface-1);
+  --color-ink: var(--color-content-0);
+  --color-ink-muted: var(--color-content-1);
+  --color-ink-subtle: var(--color-content-2);
+  --color-ink-disabled: var(--color-content-3);
+  --color-ink-placeholder: var(--color-content-4);
+  --color-page: var(--color-surface-0);
+  --color-panel: var(--color-surface-2);
+  --color-dialog: var(--color-surface-2);
+  --color-menu: var(--color-surface-2);
+  --color-input: transparent;
+  --color-input-focus: var(--color-lift);
+  --color-message: var(--color-lift);
+  --color-hover: color-mix(in oklch, var(--color-content-0) 5%, transparent);
+  --color-active: color-mix(in oklch, var(--color-content-0) 10%, transparent);
+  --color-selected: color-mix(in oklch, var(--color-accent) 8%, transparent);
+  --color-success: var(--color-green);
+  --color-warning: var(--color-amber);
+  --color-failure: var(--color-red);
+  --color-chrome: var(--color-surface-5);
 
-  --color-edge-muted:      var(--b3);
-  --color-edge:            var(--b4);
-  --color-rail:            color-mix(in oklch, var(--b4) 90%, var(--c0));
+  /* Generated compatibility tokens. */
+  --color-accent-bg: color-mix(in oklch, var(--color-accent) 8%, transparent);
+  --color-accent-ink: var(--color-accent);
+  --color-accent-hover: color-mix(in oklch, var(--color-accent) 20%, transparent);
 
-  --color-ink:             var(--c0);
-  --color-ink-muted:       var(--c1);
-  --color-ink-extra-muted: var(--c2);
-  --color-ink-disabled:    var(--c3);
-  --color-ink-placeholder: var(--c4);
+  --color-red-bg: color-mix(in oklch, var(--color-red) 15%, transparent);
+  --color-red-ink: var(--color-red);
+  --color-red-hover: color-mix(in oklch, var(--color-red) 20%, transparent);
+  --color-orange-bg: color-mix(in oklch, var(--color-orange) 15%, transparent);
+  --color-orange-ink: var(--color-orange);
+  --color-orange-hover: color-mix(in oklch, var(--color-orange) 20%, transparent);
+  --color-amber-bg: color-mix(in oklch, var(--color-amber) 15%, transparent);
+  --color-amber-ink: var(--color-amber);
+  --color-amber-hover: color-mix(in oklch, var(--color-amber) 20%, transparent);
+  --color-yellow-bg: color-mix(in oklch, var(--color-yellow) 15%, transparent);
+  --color-yellow-ink: var(--color-yellow);
+  --color-yellow-hover: color-mix(in oklch, var(--color-yellow) 20%, transparent);
+  --color-lime-bg: color-mix(in oklch, var(--color-lime) 15%, transparent);
+  --color-lime-ink: var(--color-lime);
+  --color-lime-hover: color-mix(in oklch, var(--color-lime) 20%, transparent);
+  --color-green-bg: color-mix(in oklch, var(--color-green) 15%, transparent);
+  --color-green-ink: var(--color-green);
+  --color-green-hover: color-mix(in oklch, var(--color-green) 20%, transparent);
+  --color-teal-bg: color-mix(in oklch, var(--color-teal) 15%, transparent);
+  --color-teal-ink: var(--color-teal);
+  --color-teal-hover: color-mix(in oklch, var(--color-teal) 20%, transparent);
+  --color-cyan-bg: color-mix(in oklch, var(--color-cyan) 15%, transparent);
+  --color-cyan-ink: var(--color-cyan);
+  --color-cyan-hover: color-mix(in oklch, var(--color-cyan) 20%, transparent);
+  --color-blue-bg: color-mix(in oklch, var(--color-blue) 15%, transparent);
+  --color-blue-ink: var(--color-blue);
+  --color-blue-hover: color-mix(in oklch, var(--color-blue) 20%, transparent);
+  --color-violet-bg: color-mix(in oklch, var(--color-violet) 15%, transparent);
+  --color-violet-ink: var(--color-violet);
+  --color-violet-hover: color-mix(in oklch, var(--color-violet) 20%, transparent);
+  --color-purple-bg: color-mix(in oklch, var(--color-purple) 15%, transparent);
+  --color-purple-ink: var(--color-purple);
+  --color-purple-hover: color-mix(in oklch, var(--color-purple) 20%, transparent);
+  --color-pink-bg: color-mix(in oklch, var(--color-pink) 15%, transparent);
+  --color-pink-ink: var(--color-pink);
+  --color-pink-hover: color-mix(in oklch, var(--color-pink) 20%, transparent);
 
-  /* Below are our semantic surface tokens, which either pick up color overrides from the theme, or are set to --b0, which allows them to be controlled by our Layer system */
-  /* NOTE: these are NOT all wired up. We erased a lot of our semantic design tokens when moving to Layer system, these are part of a migration back towards semantic tokens. */
-  /* To wire them up you should change the generic '*-surface' class on a component to instead use one of these tokens. */
-  --color-page:            var(--theme-page, var(--b0));
-  --color-panel:           var(--theme-panel, var(--b0));
-  --color-inset:           var(--theme-inset, var(--b0));
-  --color-dialog:          var(--theme-dialog, var(--b0));
-  --color-menu:            var(--theme-menu, var(--b0));
-  --color-input:           var(--theme-input, var(--b0));
-  --color-message:         var(--theme-message, color-mix(in oklch, var(--b1) 50%, var(--b2)));
-  --color-hover:           var(--theme-hover, var(--b2));
-  --color-active:          var(--theme-active, var(--b1));
-  --color-button:          var(--theme-button, var(--b0));
-  /* Used for floating mobile navigation chrome */
-  --color-chrome:          var(--theme-chrome, color-mix(in oklch, var(--color-menu) 85%, var(--color-active)));
+  --color-success-bg: color-mix(in oklch, var(--color-success) 15%, transparent);
+  --color-success-ink: var(--color-success);
+  --color-success-hover: color-mix(in oklch, var(--color-success) 20%, transparent);
+  --color-warning-bg: color-mix(in oklch, var(--color-warning) 15%, transparent);
+  --color-warning-ink: var(--color-warning);
+  --color-warning-hover: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  --color-failure-bg: color-mix(in oklch, var(--color-failure) 15%, transparent);
+  --color-failure-ink: var(--color-failure);
+  --color-failure-hover: color-mix(in oklch, var(--color-failure) 20%, transparent);
+  --color-alert: var(--color-warning);
+  --color-alert-bg: var(--color-warning-bg);
+  --color-alert-ink: var(--color-warning-ink);
 
+  /* Utility outputs. */
+  --color-channel-rail: color-mix(in oklch, var(--color-edge) 90%, var(--color-ink));
+  --color-channel-rail-active: var(--color-accent);
+  --color-modal-overlay: color-mix(in oklch, var(--color-surface-0) 50%, transparent);
+  --color-drop-shadow: oklch(0.15 0 0 / 0.04);
+  --color-rail: var(--color-channel-rail);
 
-  /* Below are hardcoded colors */
-  --color-failure:     oklch(0.637 0.237 25.331);
-  --color-failure-bg:  oklch(from var(--color-failure) l c h / 0.15);
-  --color-failure-ink: oklch(from var(--color-failure) var(--c1l) c h); /* scuffed */
-
-  --color-success:     oklch(0.696 0.17 162.48);
-  --color-success-bg:  oklch(from var(--color-success) l c h / 0.15);
-  --color-success-ink: oklch(from var(--color-success) var(--c1l) c h); /* scuffed */
-
-  --color-alert:       oklch(0.769 0.188 70.08);
-  --color-alert-bg:    oklch(from var(--color-alert) l c h / 0.15);
-  --color-alert-ink:   oklch(from var(--color-alert) var(--c1l) c h); /* scuffed */
+  /* Temporary compatibility aliases while component classes migrate. */
+  --color-ink-extra-muted: var(--color-ink-subtle);
+  --color-button: var(--color-surface);
+  --color-overlay: var(--color-modal-overlay);
 
   --color-comment:     oklch(from var(--a0) l c 90deg);
   --color-comment-bg:  oklch(from var(--color-comment) l c h / 0.15);

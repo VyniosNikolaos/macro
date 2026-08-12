@@ -298,8 +298,7 @@ export function SplitPanel(props: SplitPanelProps) {
               class={cn(
                 'rounded-xl mobile:rounded-none mobile:after:hidden mobile:border-0! bg-panel',
                 {
-                  'shadow-sm shadow-drop-shadow/50 bg-panel/80 dark-mode:bg-panel/30':
-                    splitUnfocusedStyling(),
+                  'shadow-sm shadow-drop-shadow/50': splitUnfocusedStyling(),
                   'shadow-2xl shadow-drop-shadow': splitFocusStyling(),
                   'border-solid!': previewPairFocusStyling() && props.active,
                   'border-dashed!': previewPairFocusStyling() && !props.active,

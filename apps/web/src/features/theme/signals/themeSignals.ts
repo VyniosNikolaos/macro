@@ -1,6 +1,11 @@
 import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME, DEFAULT_THEMES } from '../constants';
 import { createMemo, createSignal } from 'solid-js';
-import type { ThemeV0, ThemeV1, ThemeV2 } from '../types/themeTypes';
+import type {
+  ThemeColorTokens,
+  ThemeV0,
+  ThemeV1,
+  ThemeV2,
+} from '../types/themeTypes';
 import { convertThemev0v1, convertThemev1v2 } from '../utils/themeMigrations';
 import { makePersisted } from '@solid-primitives/storage';
 
@@ -34,6 +39,10 @@ export const themes = createMemo<ThemeV2[]>(() => [
   ...(DEFAULT_THEMES as readonly ThemeV2[]),
   ...userThemes(),
 ]);
+
+/** VNext colors currently rendered and edited in the document. */
+export const [themeColorTokens, setThemeColorTokens] =
+  createSignal<ThemeColorTokens>({});
 
 // Per-mode theme preferences, persisted to localStorage. The active one is
 // applied by systemThemeEffect / resolveActiveThemeId (themeUtils.ts): the light
