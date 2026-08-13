@@ -303,9 +303,14 @@ services:
     <<: [*common-env, *rust-services-image]
     command: ["/app/out/agent_trigger_service"]
     restart: on-failure
+    environment:
+      # In-network lexical address; the local default (http://localhost:8096)
+      # would point at this container itself.
+      - OVERRIDE_LEXICAL_SERVICE_URL=http://lexical-service:8096
     depends_on:
       - postgres
       - kafka
+      - lexical_service
     networks:
       - databases
       - services
