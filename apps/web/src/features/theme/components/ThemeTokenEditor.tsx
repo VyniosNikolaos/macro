@@ -23,7 +23,10 @@ import {
   serializeThemeAssignment,
   type ThemeAssignment,
 } from '../utils/themeAssignments';
-import { updateLiveThemeColorToken } from '../utils/themeUtils';
+import {
+  previewLiveThemeColorToken,
+  updateLiveThemeColorToken,
+} from '../utils/themeUtils';
 import { ColorPickerPopover } from './ColorPickerPopover';
 
 const TOKEN_OPTIONS = inputColorTokens;
@@ -189,8 +192,8 @@ function AssignmentControls(props: { token: string; value: string }) {
   const commit = (next: ThemeAssignment) =>
     updateLiveThemeColorToken(props.token, serializeThemeAssignment(next));
   const preview = (next: ThemeAssignment) =>
-    document.documentElement.style.setProperty(
-      `--color-${props.token}`,
+    previewLiveThemeColorToken(
+      props.token,
       serializeThemeAssignment(next)
     );
   const makeCustom = () =>

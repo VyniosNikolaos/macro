@@ -4,9 +4,14 @@ import type {
   ThemeColorTokens,
   ThemeV0,
   ThemeV1,
-  ThemeV2,
+  ThemeV3,
 } from '../types/themeTypes';
-import { convertThemev0v1, convertThemev1v2 } from '../utils/themeMigrations';
+import {
+  convertThemev0v1,
+  convertThemev1v2,
+  convertThemev2v3,
+} from '../utils/themeMigrations';
+import { isThemeV2, isThemeV3 } from '../utils/themeValidation';
 import { makePersisted } from '@solid-primitives/storage';
 
 export const [isThemeSaved, setIsThemeSaved] = createSignal<boolean>(true);
@@ -19,14 +24,29 @@ export const [htmlColor, setHtmlColor] = makePersisted(
 );
 
 export const [userThemes, setUserThemes] = makePersisted(
-  createSignal<ThemeV2[]>([]),
+  createSignal<ThemeV3[]>([]),
   {name: 'macro-user-themes'}
 );
 setUserThemes(
-  userThemes().map((theme) => {
-    if(!theme.version){return convertThemev1v2(convertThemev0v1(theme as unknown as ThemeV0))}
-    else if(theme.version === 1){return convertThemev1v2(theme as unknown as ThemeV1)}
-    else{return theme}
+  (userThemes() as unknown[]).flatMap((theme) => {
+    if (isThemeV3(theme)) return [theme];
+    if (isThemeV2(theme)) return [convertThemev2v3(theme)];
+    if (typeof theme !== 'object' || theme === null) return [];
+
+    const version = (theme as { version?: unknown }).version;
+    if (version === 1) {
+      return [
+        convertThemev2v3(convertThemev1v2(theme as ThemeV1)),
+      ];
+    }
+    if (version === undefined || version === 0) {
+      return [
+        convertThemev2v3(
+          convertThemev1v2(convertThemev0v1(theme as ThemeV0))
+        ),
+      ];
+    }
+    return [];
   })
 );
 
@@ -35,14 +55,18 @@ export const [currentThemeId, setCurrentThemeId] = makePersisted(
   {name: 'macro-selected-theme'}
 );
 
-export const themes = createMemo<ThemeV2[]>(() => [
-  ...(DEFAULT_THEMES as readonly ThemeV2[]),
+export const themes = createMemo<ThemeV3[]>(() => [
+  ...DEFAULT_THEMES,
   ...userThemes(),
 ]);
 
 /** VNext colors currently rendered and edited in the document. */
 export const [themeColorTokens, setThemeColorTokens] =
   createSignal<ThemeColorTokens>({});
+
+/** Intrinsic mode of the currently rendered theme. */
+export const [liveThemeMode, setLiveThemeMode] =
+  createSignal<'light' | 'dark'>('dark');
 
 // Per-mode theme preferences, persisted to localStorage. The active one is
 // applied by systemThemeEffect / resolveActiveThemeId (themeUtils.ts): the light
@@ -74,10 +98,10 @@ function initialThemeMode(): ThemeMode {
   // New/already-migrated users, and anyone who had auto-detect on: follow the OS.
   if (legacy !== 'false') { return 'system' }
   // Auto-detect was off: pin to the mode matching the previously-selected theme
-  // (dark when its text is lighter than its background — see isTokensDark).
+  // based on the explicit mode stored by V3.
   const pinned = themes().find((theme) => theme.id === currentThemeId());
   if (!pinned) { return 'system' }
-  return pinned.tokens.c0.l > pinned.tokens.b0.l ? 'dark' : 'light';
+  return pinned.mode;
 }
 
 export const [themeMode, setThemeMode] = makePersisted(

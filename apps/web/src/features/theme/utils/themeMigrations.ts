@@ -1,4 +1,8 @@
-import type { ThemeV0, ThemeV1, ThemeV2 } from '../types/themeTypes';
+import type { ThemeV0, ThemeV1, ThemeV2, ThemeV3 } from '../types/themeTypes';
+import {
+  getThemeColorMode,
+  getThemeColorTokens,
+} from './themeVNext';
 
 export function convertThemev0v1(theme: ThemeV0): ThemeV1 {
   return {
@@ -52,5 +56,17 @@ export function convertThemev1v2(theme: ThemeV1): ThemeV2 {
       b0, b1, b2, b3, b4,
       c0, c1, c2, c3, c4,
     },
+  };
+}
+
+/** Removes the legacy ramps after converting them into the authored VNext
+ * registry. The explicit mode replaces light/dark inference from b0/c0. */
+export function convertThemev2v3(theme: ThemeV2): ThemeV3 {
+  return {
+    id: theme.id,
+    name: theme.name,
+    version: 3,
+    mode: getThemeColorMode(theme.tokens),
+    colorTokens: getThemeColorTokens(theme),
   };
 }

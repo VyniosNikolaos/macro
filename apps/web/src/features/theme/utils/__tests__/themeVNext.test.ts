@@ -4,6 +4,7 @@ import {
   parseThemeAssignment,
   serializeThemeAssignment,
 } from '../themeAssignments';
+import { convertThemev2v3 } from '../themeMigrations';
 import { legacyThemeToVNextTokens } from '../themeVNext';
 
 const legacyTokens: ThemeV2Tokens = {
@@ -32,12 +33,67 @@ describe('legacyThemeToVNextTokens', () => {
     );
 
     expect(result['surface-0']).toBe('oklch(0.1 0 0deg)');
-    expect(result['surface-5']).toContain('surface-4');
+    expect(result['surface-5']).toBe('oklch(0.6 0 0deg)');
     expect(result['content-4']).toBe('oklch(0.55 0 0deg)');
     expect(result['content-5']).toBeUndefined();
     expect(result.chrome).toBe('var(--color-surface-5)');
+    expect(result.surface).toBe('var(--layer-surface)');
+    expect(result.inset).toBe('var(--layer-inset)');
+    expect(result.lift).toBe('var(--layer-lift)');
+    expect(result.panel).toBe('var(--color-surface-1)');
+    expect(result.hover).toBe(
+      'color-mix(in oklch, var(--color-content-0) 3%, transparent)'
+    );
+    expect(result.active).toBe(
+      'color-mix(in oklch, var(--color-content-0) 6%, transparent)'
+    );
     expect(result.warning).toBe('var(--color-amber)');
     expect(result.pink).toBe('oklch(0.7 0.2 345deg)');
+  });
+
+  it('converts inverted legacy light surfaces into a rising ramp', () => {
+    const result = legacyThemeToVNextTokens(
+      {
+        tokens: {
+          ...legacyTokens,
+          b0: { l: 0.96, c: 0.01, h: 60 },
+          b1: { l: 0.92, c: 0.01, h: 60 },
+          b2: { l: 0.91, c: 0.01, h: 60 },
+          b3: { l: 0.9, c: 0.01, h: 60 },
+          b4: { l: 0.89, c: 0.01, h: 60 },
+        },
+      },
+      'light'
+    );
+
+    expect(result['surface-0']).toBe('oklch(0.96 0.01 60deg)');
+    expect(result['surface-1']).toBe('oklch(0.968 0.008 60deg)');
+    expect(result['surface-5']).toBe('oklch(1 0 60deg)');
+    expect(result.edge).toBe('oklch(0.89 0.01 60deg)');
+  });
+
+  it('rounds every numeric OKLCH component to at most eight decimals', () => {
+    const result = legacyThemeToVNextTokens(
+      {
+        tokens: {
+          ...legacyTokens,
+          a0: { l: 0.6789, c: 0.1234, h: 42.678 },
+          c0: { l: 0.9345, c: 0.0123, h: 12.345 },
+        },
+        overrides: [
+          {
+            token: 'panel',
+            value: { l: 0.8765, c: 0.0345, h: 123.456 },
+          },
+        ],
+      },
+      'dark'
+    );
+
+    expect(result.accent).toBe('oklch(0.6789 0.1234 42.678deg)');
+    expect(result['content-0']).toBe('oklch(0.9345 0.0123 12.345deg)');
+    expect(result.red).toBe('oklch(0.6789 0.1234 25deg)');
+    expect(result.panel).toBe('oklch(0.8765 0.0345 123.456deg)');
   });
 });
 
@@ -68,5 +124,38 @@ describe('theme assignment serialization', () => {
     expect(parseThemeAssignment(serializeThemeAssignment(assignment))).toEqual(
       assignment
     );
+  });
+});
+
+describe('ThemeV2 to ThemeV3 migration', () => {
+  it('produces a token-only theme with an explicit mode', () => {
+    const result = convertThemev2v3({
+      id: 'legacy',
+      name: 'Legacy',
+      version: 2,
+      depth: 0.15,
+      tokens: legacyTokens,
+    });
+
+    expect(result.version).toBe(3);
+    expect(result.mode).toBe('dark');
+    expect(result.colorTokens['surface-0']).toBe('oklch(0.1 0 0deg)');
+    expect(result).not.toHaveProperty('tokens');
+    expect(result).not.toHaveProperty('depth');
+  });
+
+  it('fills a partial experimental color registry during migration', () => {
+    const result = convertThemev2v3({
+      id: 'partial',
+      name: 'Partial',
+      version: 2,
+      depth: 0.15,
+      tokens: legacyTokens,
+      colorTokens: { accent: '#ff0000' },
+    });
+
+    expect(result.colorTokens.accent).toBe('#ff0000');
+    expect(result.colorTokens['surface-0']).toBe('oklch(0.1 0 0deg)');
+    expect(result.colorTokens.ink).toBe('var(--color-content-0)');
   });
 });

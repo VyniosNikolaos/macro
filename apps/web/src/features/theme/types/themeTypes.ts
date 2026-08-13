@@ -118,6 +118,8 @@ export type SemanticToken = (typeof semanticTokens)[number];
 /** Flat, serializable source of truth for authored VNext theme colors. */
 export type ThemeColorTokens = Record<string, string>;
 
+export type ThemeColorMode = 'light' | 'dark';
+
 type TokenColor = {
   token: SemanticToken,
   value: { l: number; c: number; h: number }
@@ -126,13 +128,26 @@ type TokenColor = {
 export type ThemeV2 = {
   id: string;
   name: string;
-  version: number;
+  version: 2;
   depth: number;
   tokens: ThemeV2Tokens;
   overrides?: TokenColor[];
   /** VNext input and semantic colors. Legacy themes omit this field. */
   colorTokens?: ThemeColorTokens;
 };
+
+/** Token-only theme format. Legacy ramps and depth are generated compatibility
+ * state and are deliberately not persisted. */
+export type ThemeV3 = {
+  id: string;
+  name: string;
+  version: 3;
+  mode: ThemeColorMode;
+  colorTokens: ThemeColorTokens;
+};
+
+/** The normalized theme shape used by the application at runtime. */
+export type Theme = ThemeV3;
 
 export type ThemeV2Tokens = {
   a0: { l: number; c: number; h: number };

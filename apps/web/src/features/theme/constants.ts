@@ -1,5 +1,5 @@
 import { isMobile } from '@core/mobile/isMobile';
-import type { ThemeV2 } from './types/themeTypes';
+import type { ThemeV2, ThemeV3 } from './types/themeTypes';
 import {
   getThemeColorMode,
   legacyThemeToVNextTokens,
@@ -374,13 +374,17 @@ const LEGACY_DEFAULT_THEMES = [
   },
 ] as const satisfies readonly ThemeV2[];
 
-/** Built-in themes retain legacy ramps temporarily, but render from VNext. */
-export const DEFAULT_THEMES = LEGACY_DEFAULT_THEMES.map((theme) => ({
-  ...theme,
-  colorTokens: legacyThemeToVNextTokens(
-    theme,
-    getThemeColorMode(theme.tokens)
-  ),
-})) satisfies ThemeV2[];
+/** Built-ins are authored above in their historical form for now, but the
+ * exported runtime themes contain only the V3 source of truth. */
+export const DEFAULT_THEMES = LEGACY_DEFAULT_THEMES.map((theme) => {
+  const mode = getThemeColorMode(theme.tokens);
+  return {
+    id: theme.id,
+    name: theme.name,
+    version: 3,
+    mode,
+    colorTokens: legacyThemeToVNextTokens(theme, mode),
+  };
+}) satisfies ThemeV3[];
 
 type DefaultTheme = (typeof DEFAULT_THEMES)[number]['id'];

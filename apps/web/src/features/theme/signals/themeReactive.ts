@@ -1,5 +1,5 @@
 import type { ThemePrevious, ThemeReactive } from '../types/themeTypes';
-import { setIsThemeSaved, setThemeUpdate } from './themeSignals';
+import { setThemeUpdate } from './themeSignals';
 import { createEffect, createSignal, on } from 'solid-js';
 
 export const themeReactive: ThemeReactive = {
@@ -128,7 +128,6 @@ createEffect(
 
       syncThemeLightAttribute();
       setThemeUpdate();
-      setIsThemeSaved(false);
     },
     { defer: true }
   )

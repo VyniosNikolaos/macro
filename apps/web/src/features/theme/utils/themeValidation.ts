@@ -1,4 +1,10 @@
-import type { ThemeV2, ThemeV2Tokens } from '../types/themeTypes';
+import {
+  inputColorTokens,
+  semanticTokens,
+  type ThemeV2,
+  type ThemeV2Tokens,
+  type ThemeV3,
+} from '../types/themeTypes';
 
 const THEME_V2_TOKEN_KEYS: ReadonlyArray<keyof ThemeV2Tokens> = [
   'a0',
@@ -34,7 +40,7 @@ export function isThemeV2(data: unknown): data is ThemeV2 {
 
   if (typeof obj.id !== 'string') return false;
   if (typeof obj.name !== 'string') return false;
-  if (typeof obj.version !== 'number') return false;
+  if (obj.version !== 2) return false;
   if (typeof obj.depth !== 'number') return false;
   if (typeof obj.tokens !== 'object' || obj.tokens === null) return false;
 
@@ -59,11 +65,54 @@ export function isThemeV2(data: unknown): data is ThemeV2 {
   return true;
 }
 
+const REQUIRED_V3_COLOR_TOKENS = [
+  ...inputColorTokens,
+  ...semanticTokens,
+] as const;
+
+/** Validates the token-only persisted theme format. Extra token keys are
+ * allowed so future tooling can extend the registry without invalidating a
+ * theme, but every current authored token must be present. */
+export function isThemeV3(data: unknown): data is ThemeV3 {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+
+  if (typeof obj.id !== 'string') return false;
+  if (typeof obj.name !== 'string') return false;
+  if (obj.version !== 3) return false;
+  if (obj.mode !== 'light' && obj.mode !== 'dark') return false;
+  if (typeof obj.colorTokens !== 'object' || obj.colorTokens === null) {
+    return false;
+  }
+
+  const colorTokens = obj.colorTokens as Record<string, unknown>;
+  if (
+    !Object.values(colorTokens).every(
+      (value) => typeof value === 'string' && value.trim().length > 0
+    )
+  ) {
+    return false;
+  }
+
+  return REQUIRED_V3_COLOR_TOKENS.every(
+    (token) => typeof colorTokens[token] === 'string'
+  );
+}
+
 export function parseThemeV2Json(text: string): ThemeV2 | null {
   try {
     const parsed: unknown = JSON.parse(text);
     if (isThemeV2(parsed)) return parsed;
     return null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseThemeV3Json(text: string): ThemeV3 | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return isThemeV3(parsed) ? parsed : null;
   } catch {
     return null;
   }

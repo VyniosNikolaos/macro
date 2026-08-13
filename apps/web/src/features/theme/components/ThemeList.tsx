@@ -1,6 +1,6 @@
 import { currentThemeId, isThemeSaved, showDarkThemes, showLightThemes, themes } from '../signals/themeSignals';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
-import { applyTheme, isTokensDark } from '../utils/themeUtils';
+import { applyTheme } from '../utils/themeUtils';
 import { ThemeChips } from './ThemeChips';
 import { ThemeCrud } from './ThemeCrud';
 import { cn } from '@ui';
@@ -12,7 +12,7 @@ function ThemeList() {
 
   const visibleThemes = createMemo(() =>
     themes().filter((theme) =>
-      isTokensDark(theme.tokens) ? showDarkThemes() : showLightThemes()
+      theme.mode === 'dark' ? showDarkThemes() : showLightThemes()
     )
   );
 

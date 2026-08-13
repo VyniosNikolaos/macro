@@ -1,5 +1,4 @@
-import type { ThemeV2 } from '@theme/types/themeTypes';
-import { getThemeColorTokens } from '@theme/utils/themeVNext';
+import type { ThemeV3 } from '@theme/types/themeTypes';
 import IconTextA from '@phosphor-icons/core/regular/text-aa.svg?component-solid';
 import { cn } from '@ui';
 import type { JSX } from 'solid-js';
@@ -36,13 +35,13 @@ const sizeStyles: Record<
 /** A theme swatch: an encompassing square of the theme's panel surface with the
  *  accent and ink (A) inside. Always shows the theme's original intended colors
  *  — each theme is intrinsically light or dark. */
-export function ThemeChips(props: { theme: ThemeV2; size?: ThemeChipsSize }) {
+export function ThemeChips(props: { theme: ThemeV3; size?: ThemeChipsSize }) {
   const styles = () => sizeStyles[props.size ?? 'md'];
   const tokenStyle = (): JSX.CSSProperties => {
     const style: Record<string, string> = {
       'background-color': 'var(--color-panel)',
     };
-    for (const [token, value] of Object.entries(getThemeColorTokens(props.theme))) {
+    for (const [token, value] of Object.entries(props.theme.colorTokens)) {
       style[`--color-${token}`] = value;
     }
     return style as JSX.CSSProperties;
