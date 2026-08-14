@@ -18,7 +18,7 @@ import {
   useRemoveFavoriteMutation,
 } from '@queries/favorites/favorites';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
-import { Button, NavRow } from '@ui';
+import { Button, NavRow, Surface } from '@ui';
 import {
   createEffect,
   createSignal,
@@ -155,7 +155,12 @@ export const RailFavoritesMenu = (props: {
         <HeartIcon />
       </Button>
       <Show when={open()}>
-        <div class="absolute bottom-0 left-full z-float ml-2 flex max-h-96 w-64 flex-col overflow-y-auto rounded-xl border border-edge bg-surface p-1.5 shadow-menu">
+        {/* Same Surface depth + bg as Dropdown.Content, but kept at z-float
+            (not z-action-menu) so row context menus (z-modal) stay on top. */}
+        <Surface
+          depth={2}
+          class="absolute bottom-0 left-full z-float ml-2 flex max-h-96 w-64 flex-col overflow-y-auto rounded-xl bg-menu p-1.5 shadow-menu menu-open-animation"
+        >
           {/* Row names resolve through the async item-preview cache, which
               suspends. Without this boundary the suspension bubbles to an
               ancestor Suspense shared with the split content and blanks it. */}
@@ -179,7 +184,7 @@ export const RailFavoritesMenu = (props: {
               </For>
             </Show>
           </Suspense>
-        </div>
+        </Surface>
       </Show>
     </div>
   );
