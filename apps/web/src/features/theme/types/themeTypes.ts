@@ -51,7 +51,6 @@ export const surfaceTokens = [
   'surface-2',
   'surface-3',
   'surface-4',
-  'surface-5',
 ] as const;
 
 export const contentTokens = [
@@ -62,7 +61,7 @@ export const contentTokens = [
   'content-4',
 ] as const;
 
-export const edgeTokens = ['edge', 'edge-muted', 'edge-subtle'] as const;
+export const edgeTokens = ['edge', 'edge-muted'] as const;
 
 export const paletteTokens = [
   'red',

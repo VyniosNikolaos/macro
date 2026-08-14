@@ -33,9 +33,9 @@ function ThemeDebug() {
 
         {/* Panel Depths Section */}
         <section class="flex flex-col gap-4">
-          <h2 class="text-xl font-semibold text-ink">Panel Depths (0-5)</h2>
+          <h2 class="text-xl font-semibold text-ink">Panel Depths (0-4)</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <For each={[0, 1, 2, 3, 4, 5] as const}>
+            <For each={[0, 1, 2, 3, 4] as const}>
               {(depth) => (
                 <Panel depth={depth} class="min-h-40">
                   <Panel.Header>
@@ -62,10 +62,7 @@ function ThemeDebug() {
                 <Panel depth={3} class="p-4">
                   <p class="text-xs text-ink-muted mb-2">Depth 3</p>
                   <Panel depth={4} class="p-4">
-                    <p class="text-xs text-ink-muted mb-2">Depth 4</p>
-                    <Panel depth={5} class="p-4">
-                      <p class="text-xs text-ink-muted">Depth 5 (innermost)</p>
-                    </Panel>
+                    <p class="text-xs text-ink-muted">Depth 4 (innermost)</p>
                   </Panel>
                 </Panel>
               </Panel>

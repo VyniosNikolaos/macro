@@ -167,13 +167,7 @@ body.tauri-ios {
 [data-layer][data-depth='4'] {
   --layer-surface: var(--color-surface-4);
   --layer-inset: var(--color-surface-3);
-  --layer-lift: var(--color-surface-5);
-}
-
-[data-layer][data-depth='5'] {
-  --layer-surface: var(--color-surface-5);
-  --layer-inset: var(--color-surface-4);
-  --layer-lift: var(--color-surface-5);
+  --layer-lift: var(--color-surface-4);
 }
 
 /* Scope the panel semantic itself so nested bg-panel consumers share the same
@@ -200,7 +194,6 @@ body.tauri-ios {
   --color-surface-2: var(--b2);
   --color-surface-3: var(--b3);
   --color-surface-4: var(--b4);
-  --color-surface-5: color-mix(in oklch, var(--color-surface-4) 85%, var(--color-content-0));
   --color-content-0: var(--c0);
   --color-content-1: var(--c1);
   --color-content-2: var(--c2);
@@ -208,20 +201,19 @@ body.tauri-ios {
   --color-content-4: var(--c4);
   --color-edge: var(--color-surface-4);
   --color-edge-muted: var(--color-surface-3);
-  --color-edge-subtle: var(--color-surface-2);
   --color-accent: var(--a0);
-  --color-red: oklch(0.65 0.2 25);
-  --color-orange: oklch(0.7 0.2 50);
-  --color-amber: oklch(0.75 0.18 70);
-  --color-yellow: oklch(0.8 0.17 95);
-  --color-lime: oklch(0.75 0.18 125);
-  --color-green: oklch(0.7 0.17 145);
-  --color-teal: oklch(0.7 0.15 175);
-  --color-cyan: oklch(0.75 0.15 205);
-  --color-blue: oklch(0.65 0.2 255);
-  --color-violet: oklch(0.65 0.2 285);
-  --color-purple: oklch(0.65 0.2 310);
-  --color-pink: oklch(0.7 0.2 345);
+  --color-red: oklch(63.7% 0.237 25.331);
+  --color-orange: oklch(70.5% 0.213 47.604);
+  --color-amber: oklch(76.9% 0.188 70.08);
+  --color-yellow: oklch(79.5% 0.184 86.047);
+  --color-lime: oklch(76.8% 0.233 130.85);
+  --color-green: oklch(72.3% 0.219 149.579);
+  --color-teal: oklch(70.4% 0.14 182.503);
+  --color-cyan: oklch(71.5% 0.143 215.221);
+  --color-blue: oklch(62.3% 0.214 259.815);
+  --color-violet: oklch(60.6% 0.25 292.717);
+  --color-purple: oklch(62.7% 0.265 303.9);
+  --color-pink: oklch(65.6% 0.241 354.308);
 
   /* Component-facing semantic assignments. A theme may override the three
      layer-relative colors; otherwise they resolve through the nearest Layer. */
@@ -246,7 +238,7 @@ body.tauri-ios {
   --color-success: var(--color-green);
   --color-warning: var(--color-amber);
   --color-failure: var(--color-red);
-  --color-chrome: var(--color-surface-5);
+  --color-chrome: var(--color-surface-4);
 
   /* Generated compatibility tokens. */
   --color-accent-bg: color-mix(in oklch, var(--color-accent) 8%, transparent);
@@ -629,6 +621,16 @@ a {
 /* utils for patterned bg images */
 @utility pattern-* {
   --pattern-color: --value(--color-*);
+}
+
+/* Paint a translucent scrim as a background *image* so it layers on top of the
+   element's background-color instead of replacing it. Handy for hover/press
+   feedback on buttons with a solid or tinted background: the base color shows
+   through instead of being washed out by lowering its opacity.
+   Accepts a theme color (e.g. `overlay-hover`) or an arbitrary color value. */
+@utility overlay-* {
+  --tw-overlay: --value(--color-*, [color], [*]);
+  background-image: linear-gradient(var(--tw-overlay), var(--tw-overlay));
 }
 
 /* utils for striped bg images */

@@ -21,7 +21,7 @@ export function ThemeEditor(props: {
     // step lighter than the card via Layer depth), inset + rounded so it reads as
     // a nested element. No color-forward accent.
     <Layer depth={3}>
-      <div class="mx-3 my-2 flex max-h-[70vh] flex-col gap-3 rounded-xl border border-edge-subtle bg-surface px-4 py-4">
+      <div class="mx-3 my-2 flex max-h-[70vh] flex-col gap-3 rounded-xl border border-edge-muted bg-surface px-4 py-4">
         <div class="flex items-center gap-2">
           <Button
             label="Close editor"

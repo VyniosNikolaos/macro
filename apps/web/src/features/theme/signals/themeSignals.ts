@@ -12,6 +12,7 @@ import {
   convertThemev2v3,
 } from '../utils/themeMigrations';
 import { isThemeV2, isThemeV3 } from '../utils/themeValidation';
+import { removeDeprecatedThemeColorTokens } from '../utils/themeVNext';
 import { makePersisted } from '@solid-primitives/storage';
 
 export const [isThemeSaved, setIsThemeSaved] = createSignal<boolean>(true);
@@ -29,7 +30,14 @@ export const [userThemes, setUserThemes] = makePersisted(
 );
 setUserThemes(
   (userThemes() as unknown[]).flatMap((theme) => {
-    if (isThemeV3(theme)) return [theme];
+    if (isThemeV3(theme)) {
+      return [
+        {
+          ...theme,
+          colorTokens: removeDeprecatedThemeColorTokens(theme.colorTokens),
+        },
+      ];
+    }
     if (isThemeV2(theme)) return [convertThemev2v3(theme)];
     if (typeof theme !== 'object' || theme === null) return [];
 

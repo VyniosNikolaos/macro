@@ -160,7 +160,7 @@ describe('isThemeV2', () => {
     const data = JSON.parse(validThemeJson);
     data.colorTokens = {
       'surface-0': '#000000',
-      chrome: 'var(--color-surface-5)',
+      chrome: 'var(--color-surface-4)',
     };
     expect(isThemeV2(data)).toBe(true);
   });
@@ -190,7 +190,7 @@ describe('token-only ThemeV3 validation', () => {
 
   it('rejects a missing authored token', () => {
     const colorTokens = { ...validV3Theme.colorTokens };
-    delete colorTokens['surface-5'];
+    delete colorTokens['surface-4'];
     expect(isThemeV3({ ...validV3Theme, colorTokens })).toBe(false);
   });
 

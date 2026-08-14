@@ -192,27 +192,6 @@ export function SplitPanel(props: SplitPanelProps) {
     );
   });
 
-  /**
-   * Both members of a tucked Preview Pair share the active edge color when
-   * either member is active. The active member stays solid; its partner is
-   * dashed so focus ownership remains visible without breaking the Preview
-   * Pair's shared visual treatment.
-   */
-  const previewPairFocusStyling = createMemo(() => {
-    const manager = globalSplitManager();
-    if (!manager || isMobile() || props.handle.isSpotLight()) return false;
-
-    const peerId = props.handle.isControllerSplit()
-      ? manager.viewerOf(props.split.id)
-      : props.handle.isViewerSplit()
-        ? manager.controllerOf(props.split.id)
-        : undefined;
-    if (!peerId || manager.getSplit(peerId)?.isSpotLight()) return false;
-
-    const activeId = manager.activeSplitId();
-    return activeId === props.split.id || activeId === peerId;
-  });
-
   return (
     <SoupContextProvider soup={nextSoup}>
       <SplitPanelContext.Provider
@@ -290,19 +269,12 @@ export function SplitPanel(props: SplitPanelProps) {
             tabindex={-1}
           >
             <Panel
-              edgeColor={
-                splitFocusStyling() || previewPairFocusStyling()
-                  ? 'color-mix(in oklch, var(--color-edge) 80%, var(--color-ink))'
-                  : undefined
-              }
               class={cn(
                 'rounded-xl mobile:rounded-none mobile:after:hidden mobile:border-0! bg-panel',
                 splitUnfocusedStyling() && 'split-panel-inactive',
                 {
                   'shadow-sm shadow-drop-shadow/50': splitUnfocusedStyling(),
                   'shadow-2xl shadow-drop-shadow': splitFocusStyling(),
-                  'border-solid!': previewPairFocusStyling() && props.active,
-                  'border-dashed!': previewPairFocusStyling() && !props.active,
                   // Drawer look: both members square their seam corners. The
                   // seam border always belongs to the Controller — the
                   // Viewer's seam edge stays borderless so the line never

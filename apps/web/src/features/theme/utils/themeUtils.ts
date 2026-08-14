@@ -7,6 +7,7 @@ import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../constants';
 import { getOklch } from './colorUtil';
 import { convertThemev2v3 } from './themeMigrations';
 import { isThemeV2, isThemeV3 } from './themeValidation';
+import { removeDeprecatedThemeColorTokens } from './themeVNext';
 
 export function exportTheme(themeId?: string){
   const id = themeId ?? currentThemeId();
@@ -33,7 +34,7 @@ async function _importTheme(): Promise<void>{
       name: imported.name,
       version: 3,
       mode: imported.mode,
-      colorTokens: { ...imported.colorTokens },
+      colorTokens: removeDeprecatedThemeColorTokens(imported.colorTokens),
     };
     setUserThemes([...userThemes(), newTheme]);
     applyTheme(id);
@@ -143,17 +144,18 @@ export function previewLiveThemeColorToken(token: string, value: string): void {
 
 /** Writes all VNext authored tokens to the root and updates editor state. */
 export function setLiveThemeColorTokens(tokens: ThemeColorTokens): void {
+  const normalizedTokens = removeDeprecatedThemeColorTokens(tokens);
   for (const key of renderedColorTokenKeys) {
-    if (!(key in tokens)) {
+    if (!(key in normalizedTokens)) {
       document.documentElement.style.removeProperty(`--color-${key}`);
       document.documentElement.style.removeProperty(`--theme-${key}`);
     }
   }
-  for (const [key, value] of Object.entries(tokens)) {
+  for (const [key, value] of Object.entries(normalizedTokens)) {
     renderThemeColorToken(key, value);
   }
-  renderedColorTokenKeys = new Set(Object.keys(tokens));
-  setThemeColorTokens({ ...tokens });
+  renderedColorTokenKeys = new Set(Object.keys(normalizedTokens));
+  setThemeColorTokens(normalizedTokens);
   syncLegacyCompatibilityTokens();
 }
 

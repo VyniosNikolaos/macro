@@ -5,7 +5,10 @@ import {
   serializeThemeAssignment,
 } from '../themeAssignments';
 import { convertThemev2v3 } from '../themeMigrations';
-import { legacyThemeToVNextTokens } from '../themeVNext';
+import {
+  legacyThemeToVNextTokens,
+  removeDeprecatedThemeColorTokens,
+} from '../themeVNext';
 
 const legacyTokens: ThemeV2Tokens = {
   a0: { l: 0.7, c: 0.2, h: 40 },
@@ -26,6 +29,17 @@ const legacyTokens: ThemeV2Tokens = {
 };
 
 describe('legacyThemeToVNextTokens', () => {
+  it('removes retired tokens from existing V3 token maps', () => {
+    expect(
+      removeDeprecatedThemeColorTokens({
+        'surface-4': '#fff',
+        'surface-5': '#eee',
+        'edge-subtle': '#ddd',
+        extension: '#000',
+      })
+    ).toEqual({ 'surface-4': '#fff', extension: '#000' });
+  });
+
   it('builds the final input and semantic registry', () => {
     const result = legacyThemeToVNextTokens(
       { tokens: legacyTokens },
@@ -33,10 +47,11 @@ describe('legacyThemeToVNextTokens', () => {
     );
 
     expect(result['surface-0']).toBe('oklch(0.1 0 0deg)');
-    expect(result['surface-5']).toBe('oklch(0.6 0 0deg)');
+    expect(result['surface-4']).toBe('oklch(0.5 0 0deg)');
     expect(result['content-4']).toBe('oklch(0.55 0 0deg)');
     expect(result['content-5']).toBeUndefined();
-    expect(result.chrome).toBe('var(--color-surface-5)');
+    expect(result['edge-subtle']).toBeUndefined();
+    expect(result.chrome).toBe('var(--color-surface-4)');
     expect(result.surface).toBe('var(--layer-surface)');
     expect(result.inset).toBe('var(--layer-inset)');
     expect(result.lift).toBe('var(--layer-lift)');
@@ -48,7 +63,8 @@ describe('legacyThemeToVNextTokens', () => {
       'color-mix(in oklch, var(--color-content-0) 6%, transparent)'
     );
     expect(result.warning).toBe('var(--color-amber)');
-    expect(result.pink).toBe('oklch(0.7 0.2 345deg)');
+    expect(result.red).toBe('oklch(63.7% 0.237 25.331)');
+    expect(result.pink).toBe('oklch(65.6% 0.241 354.308)');
   });
 
   it('converts inverted legacy light surfaces into a rising ramp', () => {
@@ -67,8 +83,8 @@ describe('legacyThemeToVNextTokens', () => {
     );
 
     expect(result['surface-0']).toBe('oklch(0.96 0.01 60deg)');
-    expect(result['surface-1']).toBe('oklch(0.968 0.008 60deg)');
-    expect(result['surface-5']).toBe('oklch(1 0 60deg)');
+    expect(result['surface-1']).toBe('oklch(0.97 0.0075 60deg)');
+    expect(result['surface-4']).toBe('oklch(1 0 60deg)');
     expect(result.edge).toBe('oklch(0.89 0.01 60deg)');
   });
 
@@ -92,7 +108,7 @@ describe('legacyThemeToVNextTokens', () => {
 
     expect(result.accent).toBe('oklch(0.6789 0.1234 42.678deg)');
     expect(result['content-0']).toBe('oklch(0.9345 0.0123 12.345deg)');
-    expect(result.red).toBe('oklch(0.6789 0.1234 25deg)');
+    expect(result.red).toBe('oklch(63.7% 0.237 25.331)');
     expect(result.panel).toBe('oklch(0.8765 0.0345 123.456deg)');
   });
 });
@@ -121,6 +137,24 @@ describe('theme assignment serialization', () => {
       alpha: 0.6,
     };
 
+    expect(parseThemeAssignment(serializeThemeAssignment(assignment))).toEqual(
+      assignment
+    );
+  });
+
+  it('round trips an sRGB ramp mix', () => {
+    const assignment = {
+      kind: 'mixed' as const,
+      first: 'surface-0',
+      second: 'surface-4',
+      mix: 0.75,
+      alpha: 1,
+      space: 'srgb' as const,
+    };
+
+    expect(serializeThemeAssignment(assignment)).toBe(
+      'color-mix(in srgb, var(--color-surface-0) 75%, var(--color-surface-4))'
+    );
     expect(parseThemeAssignment(serializeThemeAssignment(assignment))).toEqual(
       assignment
     );
