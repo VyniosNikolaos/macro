@@ -197,11 +197,7 @@ function EntityRow(props: { event: ActivityEvent; entityType: EntityType }) {
   });
 
   return (
-    <div
-      {...navHandlers}
-      class={ROW_BODY_CLASS}
-      classList={{ 'cursor-pointer': display.blockOrFileType() !== null }}
-    >
+    <div {...navHandlers} class={ROW_BODY_CLASS}>
       <span class="shrink-0 font-medium">
         <ActorName actorId={props.event.actorId} />
       </span>

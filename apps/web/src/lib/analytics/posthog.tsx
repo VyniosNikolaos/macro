@@ -23,10 +23,13 @@ export const [PosthogProvider, usePosthog] = createAssertedContextProvider(
     const [flagsLoaded, setFlagsLoaded] = createSignal(false);
 
     const unsub = analytics.posthog.onFeatureFlags((flags, _, ctx) => {
+      // Order matters: signals propagate synchronously, so flagsLoaded must
+      // only flip after the flag values are in place — the other way around,
+      // flag-off fallbacks fire against the still-empty flag list.
+      if (!ctx?.errorsLoading) {
+        setFeatureFlags(flags);
+      }
       setFlagsLoaded(true);
-      if (ctx?.errorsLoading) return;
-
-      setFeatureFlags(flags);
     });
 
     onCleanup(unsub);
