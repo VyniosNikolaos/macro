@@ -215,7 +215,6 @@ body.tauri-ios {
   --color-purple: oklch(62.7% 0.265 303.9);
   --color-pink: oklch(65.6% 0.241 354.308);
 
-<<<<<<< HEAD
   /* Component-facing semantic assignments. A theme may override the three
      layer-relative colors; otherwise they resolve through the nearest Layer. */
   --color-surface: var(--theme-surface, var(--layer-surface));
@@ -240,11 +239,6 @@ body.tauri-ios {
   --color-warning: var(--color-amber);
   --color-failure: var(--color-red);
   --color-chrome: var(--color-surface-4);
-=======
-  --color-surface:         var(--b0);
-  --color-drop-shadow:     oklch(0.15 0 0 / 0.04);
-  --color-overlay:         oklch(0 0 0 / 0.25);
->>>>>>> main
 
   /* Generated compatibility tokens. */
   --color-accent-bg: color-mix(in oklch, var(--color-accent) 8%, transparent);
@@ -304,7 +298,7 @@ body.tauri-ios {
   /* Utility outputs. */
   --color-channel-rail: color-mix(in oklch, var(--color-edge) 90%, var(--color-ink));
   --color-channel-rail-active: var(--color-accent);
-  --color-modal-overlay: color-mix(in oklch, var(--color-surface-0) 50%, transparent);
+  --color-modal-overlay: oklch(0 0 0 / 0.25);
   --color-drop-shadow: oklch(0.15 0 0 / 0.04);
   --color-rail: var(--color-channel-rail);
 
