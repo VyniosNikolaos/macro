@@ -164,12 +164,22 @@ type DssSoupState =
 /// Realtime Soup consumer service used by GraphQL subscriptions.
 pub(crate) type DssSoupRealtimeService = SoupRealtimeConsumerService<SoupTopicConsumer>;
 
+/// Realtime notification consumer service used by GraphQL subscriptions.
+pub(crate) type DssNotificationRealtimeService =
+    notification::domain::service::WebSocketNotificationConsumerService<
+        notification::outbound::notification_consumer::NotificationTopicConsumer<
+            model_notifications::NotifEvent,
+        >,
+        model_notifications::NotifEvent,
+    >;
+
 /// GraphQL Soup schema wired to the DSS services; the `ApiContext` state
 /// parameter lets GraphQL resolvers run the same axum extractors as the REST
 /// routes, lazily, against the stored request parts.
 pub(crate) type DssGraphqlSoupSchema = complete_graph::SharedSoupSchema<
     DssSoupService,
     DssSoupRealtimeService,
+    DssNotificationRealtimeService,
     DssEmailService,
     EntityAccessService,
     AuthorizationService,

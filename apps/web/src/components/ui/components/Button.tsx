@@ -62,8 +62,8 @@ export type ButtonVariant =
 // solid backgrounds lighten toward the text color instead of washing out.
 const variantStyles: Record<ButtonVariant, string> = {
   danger:
-    'bg-transparent text-failure border border-failure/50 not-disabled:hover:overlay-failure-bg not-disabled:active:overlay-failure-hover disabled:opacity-30 ',
-  base: 'bg-transparent text-ink-muted border border-edge-muted not-disabled:hover:overlay-hover not-disabled:hover:text-ink active:overlay-active disabled:opacity-30 ',
+    'bg-failure/10 text-failure dark:bg-failure/15 focus-visible:bg-failure/25 focus-visible:border focus-visible:border-failure/50 not-disabled:hover:bg-failure/25 not-disabled:active:bg-failure/30 disabled:opacity-30 ',
+  base: 'bg-transparent text-ink-muted border border-edge-muted not-disabled:hover:bg-hover not-disabled:hover:text-ink active:bg-active disabled:opacity-30 ',
   active:
     'bg-accent-bg not-disabled:hover:overlay-accent-bg text-accent disabled:opacity-30 ',
   success:
