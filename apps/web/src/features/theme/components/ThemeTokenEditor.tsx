@@ -26,6 +26,7 @@ import {
   convertOklchTo,
   getOklch,
   sanitizeOklch,
+  tryGetOklch,
 } from '../utils/colorUtil';
 import {
   parseThemeAssignment,
@@ -104,13 +105,17 @@ function tokenLabel(token: string): string {
 function resolvedColor(token: string): string {
   if (typeof document === 'undefined') return '#000000';
   const probe = document.createElement('span');
-  probe.style.position = 'absolute';
-  probe.style.visibility = 'hidden';
-  probe.style.backgroundColor = `var(--color-${token})`;
-  document.body.append(probe);
-  const color = getComputedStyle(probe).backgroundColor;
-  probe.remove();
-  return color || '#000000';
+  try {
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.backgroundColor = `var(--color-${token})`;
+    (document.body ?? document.documentElement).append(probe);
+    return getComputedStyle(probe).backgroundColor || '#000000';
+  } catch {
+    return '#000000';
+  } finally {
+    probe.remove();
+  }
 }
 
 function ColorControl(props: {
@@ -118,17 +123,18 @@ function ColorControl(props: {
   value: string;
   onChange: (value: string) => void;
 }) {
-  const initial = () => {
+  const readColor = () => {
     try {
       return getOklch(props.value);
     } catch {
-      return getOklch(resolvedColor(props.token));
+      return tryGetOklch(resolvedColor(props.token));
     }
   };
-  const [l, setL] = createSignal(initial().l);
-  const [c, setC] = createSignal(initial().c);
-  const [h, setH] = createSignal(initial().h);
-  const [alpha, setAlpha] = createSignal(initial().alpha);
+  const initial = readColor();
+  const [l, setL] = createSignal(initial.l);
+  const [c, setC] = createSignal(initial.c);
+  const [h, setH] = createSignal(initial.h);
+  const [alpha, setAlpha] = createSignal(initial.alpha);
   let lastWritten = props.value;
 
   createEffect(() => {
@@ -142,7 +148,12 @@ function ColorControl(props: {
       // Achromatic colors have no meaningful hue. Keep the picker's hue state.
       if (next.c > 0.0001) setH(next.h);
     } catch {
-      const next = getOklch(resolvedColor(props.token));
+      const next = tryGetOklch(resolvedColor(props.token), {
+        l: l(),
+        c: c(),
+        h: h(),
+        alpha: alpha(),
+      });
       setL(next.l);
       setC(next.c);
       setAlpha(next.alpha);

@@ -52,6 +52,25 @@ export function getOklch(cssColor: string): OklchColor {
   });
 }
 
+/** Parses a CSS color without allowing invalid or unresolved editor state to
+ * escape into rendering. CSS variables and mixes should be resolved by the
+ * caller first; malformed values simply retain the supplied finite fallback. */
+export function tryGetOklch(
+  cssColor: unknown,
+  fallback: OklchColor = DEFAULT_OKLCH
+): OklchColor {
+  const safeFallback = sanitizeOklch(fallback);
+  if (typeof cssColor !== 'string' || cssColor.trim().length === 0) {
+    return safeFallback;
+  }
+
+  try {
+    return getOklch(cssColor);
+  } catch {
+    return safeFallback;
+  }
+}
+
 export function convertOklchTo(
   l: number,
   c: number,
