@@ -22,7 +22,11 @@ import {
   surfaceTokens,
 } from '../types/themeTypes';
 import { themeColorTokens } from '../signals/themeSignals';
-import { convertOklchTo, getOklch } from '../utils/colorUtil';
+import {
+  convertOklchTo,
+  getOklch,
+  sanitizeOklch,
+} from '../utils/colorUtil';
 import {
   parseThemeAssignment,
   serializeThemeAssignment,
@@ -57,6 +61,8 @@ const tokenSections = [
       'panel',
       'dialog',
       'menu',
+      'tooltip',
+      'toast',
       'input',
       'input-focus',
       'message',
@@ -73,6 +79,10 @@ const tokenSections = [
       'ink-disabled',
       'ink-placeholder',
     ] as const,
+  },
+  {
+    label: 'Links',
+    tokens: ['link', 'link-hover', 'link-visited'] as const,
   },
   {
     label: 'Interaction',
@@ -146,20 +156,23 @@ function ColorControl(props: {
     h?: number;
     alpha?: number;
   }) => {
-    const nextL = next.l ?? l();
-    const nextC = next.c ?? c();
-    const nextH = next.h ?? h();
-    const nextAlpha = next.alpha ?? alpha();
-    setL(nextL);
-    setC(nextC);
-    setH(nextH);
-    setAlpha(nextAlpha);
+    const current = sanitizeOklch({
+      l: l(),
+      c: c(),
+      h: h(),
+      alpha: alpha(),
+    });
+    const safe = sanitizeOklch({ ...current, ...next }, current);
+    setL(safe.l);
+    setC(safe.c);
+    setH(safe.h);
+    setAlpha(safe.alpha);
     lastWritten = convertOklchTo(
-      nextL,
-      nextC,
-      nextH,
+      safe.l,
+      safe.c,
+      safe.h,
       'oklch',
-      nextAlpha
+      safe.alpha
     );
     props.onChange(lastWritten);
   };

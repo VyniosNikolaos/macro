@@ -7,7 +7,7 @@ import {
 import { convertThemev2v3 } from '../themeMigrations';
 import {
   legacyThemeToVNextTokens,
-  removeDeprecatedThemeColorTokens,
+  normalizeThemeColorTokens,
 } from '../themeVNext';
 
 const legacyTokens: ThemeV2Tokens = {
@@ -31,13 +31,21 @@ const legacyTokens: ThemeV2Tokens = {
 describe('legacyThemeToVNextTokens', () => {
   it('removes retired tokens from existing V3 token maps', () => {
     expect(
-      removeDeprecatedThemeColorTokens({
+      normalizeThemeColorTokens({
         'surface-4': '#fff',
         'surface-5': '#eee',
         'edge-subtle': '#ddd',
         extension: '#000',
       })
-    ).toEqual({ 'surface-4': '#fff', extension: '#000' });
+    ).toEqual({
+      'surface-4': '#fff',
+      extension: '#000',
+      tooltip: 'var(--color-surface-2)',
+      toast: 'var(--color-surface-2)',
+      link: 'var(--color-accent)',
+      'link-hover': 'var(--color-accent)',
+      'link-visited': 'var(--color-accent)',
+    });
   });
 
   it('builds the final input and semantic registry', () => {
@@ -56,6 +64,11 @@ describe('legacyThemeToVNextTokens', () => {
     expect(result.inset).toBe('var(--layer-inset)');
     expect(result.lift).toBe('var(--layer-lift)');
     expect(result.panel).toBe('var(--color-surface-1)');
+    expect(result.tooltip).toBe('var(--color-surface-2)');
+    expect(result.toast).toBe('var(--color-surface-2)');
+    expect(result.link).toBe('var(--color-accent)');
+    expect(result['link-hover']).toBe('var(--color-accent)');
+    expect(result['link-visited']).toBe('var(--color-accent)');
     expect(result.hover).toBe(
       'color-mix(in oklch, var(--color-content-0) 3%, transparent)'
     );
@@ -63,8 +76,9 @@ describe('legacyThemeToVNextTokens', () => {
       'color-mix(in oklch, var(--color-content-0) 6%, transparent)'
     );
     expect(result.warning).toBe('var(--color-amber)');
-    expect(result.red).toBe('oklch(63.7% 0.237 25.331)');
-    expect(result.pink).toBe('oklch(65.6% 0.241 354.308)');
+    expect(result.red).toBe('oklch(0.7 0.2 25.331deg)');
+    expect(result.yellow).toBe('oklch(0.7 0.2 86.047deg)');
+    expect(result.pink).toBe('oklch(0.7 0.2 354.308deg)');
   });
 
   it('converts inverted legacy light surfaces into a rising ramp', () => {
@@ -108,7 +122,7 @@ describe('legacyThemeToVNextTokens', () => {
 
     expect(result.accent).toBe('oklch(0.6789 0.1234 42.678deg)');
     expect(result['content-0']).toBe('oklch(0.9345 0.0123 12.345deg)');
-    expect(result.red).toBe('oklch(63.7% 0.237 25.331)');
+    expect(result.red).toBe('oklch(0.6789 0.1234 25.331deg)');
     expect(result.panel).toBe('oklch(0.8765 0.0345 123.456deg)');
   });
 });

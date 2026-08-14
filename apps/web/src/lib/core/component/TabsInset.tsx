@@ -33,8 +33,7 @@ export const TabsInset = (props: TabsInsetProps) => {
   // checked item is elevated two steps above it so the active pill still reads
   // as raised regardless of the panel depth.
   const trackDepth = () => local.depth ?? 0;
-  const itemDepth = () =>
-    Math.min(4, trackDepth() + 2) as 0 | 1 | 2 | 3 | 4;
+  const itemDepth = () => Math.min(4, trackDepth() + 2) as 0 | 1 | 2 | 3 | 4;
 
   return (
     <KSegmentedControl

@@ -119,7 +119,10 @@ function CommandMenuShellRoot(props: SurfaceProps) {
   const [local, rest] = splitProps(props, ['children', 'class']);
 
   return (
-    <Panel class={cn('max-h-[75vh] rounded-xl bg-dialog', local.class)} {...rest}>
+    <Panel
+      class={cn('max-h-[75vh] rounded-xl bg-dialog', local.class)}
+      {...rest}
+    >
       {local.children}
     </Panel>
   );

@@ -4,7 +4,7 @@ import CheckIcon from '@phosphor/check.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import Spinner from '@phosphor/spinner.svg';
 import XIcon from '@phosphor/x.svg';
-import { Button, cn, Layer, Surface } from '@ui';
+import { Button, cn, Surface } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import {
   createEffect,
@@ -281,18 +281,15 @@ function ToastBodyWrapper(props: {
       fallback={
         <Surface
           highlightColor={props.accentColor}
-          class="relative w-[90vw] sm:w-md p-2 sm:p-3 rounded-xl shadow-lg shadow-drop-shadow"
-          depth={2}
+          class="relative w-[90vw] sm:w-md p-2 sm:p-3 rounded-xl bg-toast shadow-lg shadow-drop-shadow"
         >
           {props.children}
         </Surface>
       }
     >
-      <Layer depth={3}>
-        <div class="island relative w-[90vw] p-2 rounded-xl">
-          {props.children}
-        </div>
-      </Layer>
+      <div class="island relative w-[90vw] p-2 rounded-xl bg-toast">
+        {props.children}
+      </div>
     </Show>
   );
 }

@@ -179,6 +179,17 @@ describe('isThemeV2', () => {
 });
 
 describe('token-only ThemeV3 validation', () => {
+  it('accepts a V3 theme created before backfilled semantics were added', () => {
+    const legacyV3Theme = structuredClone(validV3Theme);
+    delete legacyV3Theme.colorTokens.tooltip;
+    delete legacyV3Theme.colorTokens.toast;
+    delete legacyV3Theme.colorTokens.link;
+    delete legacyV3Theme.colorTokens['link-hover'];
+    delete legacyV3Theme.colorTokens['link-visited'];
+
+    expect(isThemeV3(legacyV3Theme)).toBe(true);
+  });
+
   it('accepts a complete V3 theme without legacy tokens or depth', () => {
     expect(isThemeV3(validV3Theme)).toBe(true);
     expect(parseThemeV3Json(JSON.stringify(validV3Theme))).toEqual(validV3Theme);

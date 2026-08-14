@@ -296,8 +296,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   'shadow-sm shadow-drop-shadow/50': splitUnfocusedStyling(),
                   'shadow-2xl shadow-drop-shadow': splitFocusStyling(),
                   'border-solid!': previewPairFocusStyling() && props.active,
-                  'border-dashed!':
-                    previewPairFocusStyling() && !props.active,
+                  'border-dashed!': previewPairFocusStyling() && !props.active,
                   // Drawer look: both members square their seam corners. The
                   // seam border always belongs to the Controller — the
                   // Viewer's seam edge stays borderless so the line never

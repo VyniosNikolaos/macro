@@ -15,7 +15,13 @@ import {
   Show,
   untrack,
 } from 'solid-js';
-import { convertOklchTo, getOklch, validateColor } from '../utils/colorUtil';
+import {
+  convertOklchTo,
+  formatOklch,
+  getOklch,
+  sanitizeOklch,
+  validateColor,
+} from '../utils/colorUtil';
 import { ColorSwatch } from './ColorSwatch';
 
 // Chroma axis maxes out at 0.37, matching the Basic editor's chroma slider.
@@ -213,9 +219,19 @@ export function ColorPickerPopover(props: {
   /** Custom trigger content (replaces the default swatch). */
   trigger?: JSX.Element;
 }) {
-  const alpha = () => props.alpha?.() ?? 1;
-  const oklch = () =>
-    `oklch(${props.l()} ${props.c()} ${props.h()}deg / ${alpha()})`;
+  const pickerColor = createMemo(() =>
+    sanitizeOklch({
+      l: props.l(),
+      c: props.c(),
+      h: props.h(),
+      alpha: props.alpha?.() ?? 1,
+    })
+  );
+  const lightness = () => pickerColor().l;
+  const chroma = () => pickerColor().c;
+  const hue = () => pickerColor().h;
+  const alpha = () => pickerColor().alpha;
+  const oklch = () => formatOklch(pickerColor());
 
   const color = () => new Color(oklch());
   const rgb = createMemo(() => {
@@ -246,13 +262,20 @@ export function ColorPickerPopover(props: {
 
   const applyColor = (next: Color) => {
     const converted = next.to('oklch');
-    const nextL = Number(converted.coords[0]) || 0;
-    const nextC = Number(converted.coords[1]) || 0;
     const nextH = Number(converted.coords[2]);
+    const safe = sanitizeOklch(
+      {
+        l: converted.coords[0],
+        c: converted.coords[1],
+        h: nextH,
+        alpha: converted.alpha,
+      },
+      pickerColor()
+    );
     batch(() => {
-      props.onL(nextL);
-      props.onC(nextC);
-      if (nextC > 0.0001 && Number.isFinite(nextH)) props.onH(nextH);
+      props.onL(safe.l);
+      props.onC(safe.c);
+      if (safe.c > 0.0001 && Number.isFinite(nextH)) props.onH(safe.h);
     });
   };
 
@@ -368,13 +391,13 @@ export function ColorPickerPopover(props: {
 
               <div class="flex gap-4">
                 <ColorField
-                  l={props.l}
-                  c={props.c}
-                  h={props.h}
+                  l={lightness}
+                  c={chroma}
+                  h={hue}
                   onL={props.onL}
                   onC={props.onC}
                 />
-                <HueSlider h={props.h} onH={props.onH} />
+                <HueSlider h={hue} onH={props.onH} />
               </div>
 
               <Slider
@@ -390,7 +413,7 @@ export function ColorPickerPopover(props: {
                 <Slider.Track
                   class="relative h-3 flex-1 rounded-full border border-edge-muted theme-alpha-track"
                   style={{
-                    background: `linear-gradient(to right, transparent, oklch(${props.l()} ${props.c()} ${props.h()}deg)), repeating-conic-gradient(var(--color-surface-2) 0 25%, var(--color-surface-4) 0 50%) 0 / 8px 8px`,
+                    background: `linear-gradient(to right, transparent, ${formatOklch({ ...pickerColor(), alpha: 1 })}), repeating-conic-gradient(var(--color-surface-2) 0 25%, var(--color-surface-4) 0 50%) 0 / 8px 8px`,
                   }}
                 >
                   <Slider.Fill class="absolute h-full rounded-full bg-transparent" />

@@ -12,7 +12,7 @@ import {
   convertThemev2v3,
 } from '../utils/themeMigrations';
 import { isThemeV2, isThemeV3 } from '../utils/themeValidation';
-import { removeDeprecatedThemeColorTokens } from '../utils/themeVNext';
+import { normalizeThemeColorTokens } from '../utils/themeVNext';
 import { makePersisted } from '@solid-primitives/storage';
 
 export const [isThemeSaved, setIsThemeSaved] = createSignal<boolean>(true);
@@ -34,7 +34,7 @@ setUserThemes(
       return [
         {
           ...theme,
-          colorTokens: removeDeprecatedThemeColorTokens(theme.colorTokens),
+          colorTokens: normalizeThemeColorTokens(theme.colorTokens),
         },
       ];
     }

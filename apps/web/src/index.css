@@ -175,7 +175,7 @@ body.tauri-ios {
 .split-panel-inactive {
   --color-panel: color-mix(
     in oklch,
-    var(--theme-panel, var(--color-surface-1)) 60%,
+    var(--theme-panel, var(--color-surface-1)) 80%,
     var(--color-page)
   );
 }
@@ -225,10 +225,15 @@ body.tauri-ios {
   --color-ink-subtle: var(--color-content-2);
   --color-ink-disabled: var(--color-content-3);
   --color-ink-placeholder: var(--color-content-4);
+  --color-link: var(--color-accent);
+  --color-link-hover: var(--color-accent);
+  --color-link-visited: var(--color-accent);
   --color-page: var(--color-surface-0);
   --color-panel: var(--theme-panel, var(--color-surface-1));
   --color-dialog: var(--color-surface-2);
   --color-menu: var(--color-surface-2);
+  --color-tooltip: var(--color-surface-2);
+  --color-toast: var(--color-surface-2);
   --color-input: transparent;
   --color-input-focus: var(--color-lift);
   --color-message: var(--color-lift);
@@ -307,41 +312,41 @@ body.tauri-ios {
   --color-button: var(--color-surface);
   --color-overlay: var(--color-modal-overlay);
 
-  --color-comment:     oklch(from var(--a0) l c 90deg);
+  /* Entity colors are aliases of the authored named palette. */
+  --color-comment:     var(--color-yellow);
   --color-comment-bg:  oklch(from var(--color-comment) l c h / 0.15);
   --color-comment-ink: oklch(from var(--color-comment) var(--c1l) c h); /* scuffed */
 
-  --color-calendar:    oklch(from var(--a0) l c 100deg);
-  --color-contact:     oklch(from var(--a0) l c  94deg);
-  --color-canvas:      oklch(from var(--a0) l c  60deg);
-  --color-folder:      oklch(from var(--a0) l c 240deg);
-  --color-image:       oklch(from var(--a0) l c  95deg);
-  --color-video:       oklch(from var(--a0) l c 277deg);
-  --color-write:       oklch(from var(--a0) l c 260deg);
-  --color-code:        oklch(from var(--a0) l c 180deg);
-  --color-chat:        oklch(from var(--a0) l c 220deg);
-  --color-html:        oklch(from var(--a0) l c  47deg);
-  --color-note:        oklch(from var(--a0) l c 293deg);
-  --color-task:        oklch(from var(--a0) l c 150deg);
-  --color-snippet:     oklch(from var(--a0) l c 330deg);
-  --color-pdf:         oklch(from var(--a0) l c  25deg);
-  --color-rss:         oklch(from var(--a0) l c 260deg);
-  --color-default:     var(--c1);
+  --color-calendar:    var(--color-yellow);
+  --color-contact:     var(--color-yellow);
+  --color-canvas:      var(--color-amber);
+  --color-folder:      var(--color-blue);
+  --color-image:       var(--color-yellow);
+  --color-video:       var(--color-violet);
+  --color-write:       var(--color-blue);
+  --color-code:        var(--color-teal);
+  --color-chat:        var(--color-cyan);
+  --color-html:        var(--color-orange);
+  --color-note:        var(--color-violet);
+  --color-task:        var(--color-green);
+  --color-snippet:     var(--color-pink);
+  --color-pdf:         var(--color-red);
+  --color-rss:         var(--color-blue);
+  --color-default:     var(--color-content-1);
   --color-email:       var(--color-default);
 
-  /* SCUFFED We probably want to let the theme determine 3 or 4 "extra" hue offsets. Rights now these are only being */
-  /* used as debug colors and to improve the consistency of markdown block lightness/chroma with themed css */
-  --color-accent-30:  oklch(var(--a0l) var(--a0c) calc(var(--a0h) +  30deg));
-  --color-accent-60:  oklch(var(--a0l) var(--a0c) calc(var(--a0h) +  60deg));
-  --color-accent-90:  oklch(var(--a0l) var(--a0c) calc(var(--a0h) +  90deg));
-  --color-accent-120: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 120deg));
-  --color-accent-150: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 150deg));
-  --color-accent-180: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 180deg));
-  --color-accent-210: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 210deg));
-  --color-accent-240: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 240deg));
-  --color-accent-270: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 270deg));
-  --color-accent-300: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 300deg));
-  --color-accent-330: oklch(var(--a0l) var(--a0c) calc(var(--a0h) + 330deg));
+  /* Compatibility aliases for existing syntax-highlight classes. */
+  --color-accent-30:  var(--color-red);
+  --color-accent-60:  var(--color-orange);
+  --color-accent-90:  var(--color-yellow);
+  --color-accent-120: var(--color-lime);
+  --color-accent-150: var(--color-green);
+  --color-accent-180: var(--color-teal);
+  --color-accent-210: var(--color-cyan);
+  --color-accent-240: var(--color-blue);
+  --color-accent-270: var(--color-violet);
+  --color-accent-300: var(--color-purple);
+  --color-accent-330: var(--color-pink);
 
   /* Font families */
   --font-sans: "Inter Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";

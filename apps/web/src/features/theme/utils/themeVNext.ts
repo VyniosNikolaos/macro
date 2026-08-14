@@ -7,21 +7,21 @@ import type {
   ThemeV2Tokens,
 } from '../types/themeTypes';
 
-/** Tailwind 500 colors shared by every theme. */
-export const FIXED_PALETTE_COLORS = {
-  red: 'oklch(63.7% 0.237 25.331)',
-  orange: 'oklch(70.5% 0.213 47.604)',
-  amber: 'oklch(76.9% 0.188 70.08)',
-  yellow: 'oklch(79.5% 0.184 86.047)',
-  lime: 'oklch(76.8% 0.233 130.85)',
-  green: 'oklch(72.3% 0.219 149.579)',
-  teal: 'oklch(70.4% 0.14 182.503)',
-  cyan: 'oklch(71.5% 0.143 215.221)',
-  blue: 'oklch(62.3% 0.214 259.815)',
-  violet: 'oklch(60.6% 0.25 292.717)',
-  purple: 'oklch(62.7% 0.265 303.9)',
-  pink: 'oklch(65.6% 0.241 354.308)',
-} as const satisfies Record<string, string>;
+/** Tailwind 500 hue angles used to project a legacy theme's accent color. */
+export const PALETTE_HUES = {
+  red: 25.331,
+  orange: 47.604,
+  amber: 70.08,
+  yellow: 86.047,
+  lime: 130.85,
+  green: 149.579,
+  teal: 182.503,
+  cyan: 215.221,
+  blue: 259.815,
+  violet: 292.717,
+  purple: 303.9,
+  pink: 354.308,
+} as const satisfies Record<string, number>;
 
 const roundToEightDecimals = (value: number) => {
   const rounded = Math.round((value + Number.EPSILON) * 100_000_000) / 100_000_000;
@@ -75,20 +75,25 @@ export const mixTokens = (
 ) =>
   `color-mix(in ${space}, ${tokenReference(first)} ${Math.round(amount * 10000) / 100}%, ${tokenReference(second)})`;
 
-/** Drops authored tokens removed from the V3 registry while preserving future
- * extension keys. */
-export function removeDeprecatedThemeColorTokens(
+/** Backfills current defaults and drops tokens removed from the V3 registry
+ * while preserving future extension keys. */
+export function normalizeThemeColorTokens(
   tokens: ThemeColorTokens
 ): ThemeColorTokens {
   const next = { ...tokens };
   delete next['surface-5'];
   delete next['edge-subtle'];
+  next.tooltip ??= tokenReference('surface-2');
+  next.toast ??= tokenReference('surface-2');
+  next.link ??= tokenReference('accent');
+  next['link-hover'] ??= tokenReference('accent');
+  next['link-visited'] ??= tokenReference('accent');
   return next;
 }
 
 /**
  * Converts a legacy b/c/a theme into the VNext flat token model. Palette
- * colors use the shared Tailwind 500 values.
+ * colors preserve a0's lightness and chroma at fixed Tailwind hue angles.
  */
 export function legacyThemeToVNextTokens(
   theme: Pick<ThemeV2, 'tokens' | 'overrides'> | { tokens: ThemeV2Tokens },
@@ -112,8 +117,8 @@ export function legacyThemeToVNextTokens(
     accent: oklch(tokens.a0),
   };
 
-  for (const [name, color] of Object.entries(FIXED_PALETTE_COLORS)) {
-    result[name] = color;
+  for (const [name, hue] of Object.entries(PALETTE_HUES)) {
+    result[name] = oklch({ l: tokens.a0.l, c: tokens.a0.c, h: hue });
   }
 
   const defaults: Record<SemanticToken, string> = {
@@ -125,10 +130,15 @@ export function legacyThemeToVNextTokens(
     'ink-subtle': tokenReference('content-2'),
     'ink-disabled': tokenReference('content-3'),
     'ink-placeholder': tokenReference('content-4'),
+    link: tokenReference('accent'),
+    'link-hover': tokenReference('accent'),
+    'link-visited': tokenReference('accent'),
     page: tokenReference('surface-0'),
     panel: tokenReference('surface-1'),
     dialog: tokenReference('surface-2'),
     menu: tokenReference('surface-2'),
+    tooltip: tokenReference('surface-2'),
+    toast: tokenReference('surface-2'),
     input: 'transparent',
     'input-focus': tokenReference('lift'),
     message: tokenReference('lift'),
@@ -170,6 +180,6 @@ export function isInputColorToken(token: string): token is InputColorToken {
     token === 'edge' ||
     token === 'edge-muted' ||
     token === 'accent' ||
-    token in FIXED_PALETTE_COLORS
+    token in PALETTE_HUES
   );
 }

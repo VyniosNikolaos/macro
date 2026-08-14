@@ -67,7 +67,14 @@ export function isThemeV2(data: unknown): data is ThemeV2 {
 
 const REQUIRED_V3_COLOR_TOKENS = [
   ...inputColorTokens,
-  ...semanticTokens,
+  ...semanticTokens.filter(
+    (token) =>
+      token !== 'tooltip' &&
+      token !== 'toast' &&
+      token !== 'link' &&
+      token !== 'link-hover' &&
+      token !== 'link-visited'
+  ),
 ] as const;
 
 /** Validates the token-only persisted theme format. Extra token keys are

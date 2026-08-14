@@ -7,7 +7,7 @@ import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../constants';
 import { getOklch } from './colorUtil';
 import { convertThemev2v3 } from './themeMigrations';
 import { isThemeV2, isThemeV3 } from './themeValidation';
-import { removeDeprecatedThemeColorTokens } from './themeVNext';
+import { normalizeThemeColorTokens } from './themeVNext';
 
 export function exportTheme(themeId?: string){
   const id = themeId ?? currentThemeId();
@@ -34,7 +34,7 @@ async function _importTheme(): Promise<void>{
       name: imported.name,
       version: 3,
       mode: imported.mode,
-      colorTokens: removeDeprecatedThemeColorTokens(imported.colorTokens),
+      colorTokens: normalizeThemeColorTokens(imported.colorTokens),
     };
     setUserThemes([...userThemes(), newTheme]);
     applyTheme(id);
@@ -144,7 +144,7 @@ export function previewLiveThemeColorToken(token: string, value: string): void {
 
 /** Writes all VNext authored tokens to the root and updates editor state. */
 export function setLiveThemeColorTokens(tokens: ThemeColorTokens): void {
-  const normalizedTokens = removeDeprecatedThemeColorTokens(tokens);
+  const normalizedTokens = normalizeThemeColorTokens(tokens);
   for (const key of renderedColorTokenKeys) {
     if (!(key in normalizedTokens)) {
       document.documentElement.style.removeProperty(`--color-${key}`);
