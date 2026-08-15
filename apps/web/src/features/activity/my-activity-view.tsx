@@ -12,6 +12,7 @@ import type { EntityType } from '@service-properties/generated/schemas/entityTyp
 import type { GraphqlEntityType } from '@service-storage/graphql/generated/graphql';
 import { Button } from '@ui';
 import { type Component, createMemo, For, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { ActionGlyph } from './action-glyph';
 import { ActionPhrase } from './action-phrase';
 import { ActorName } from './actor-name';
@@ -33,22 +34,14 @@ import { PropertyChangeText } from './property-change';
 function displayEntityType(
   entityType: GraphqlEntityType
 ): EntityType | undefined {
-  switch (entityType) {
-    case 'DOCUMENT':
-      return 'DOCUMENT';
-    case 'PROJECT':
-      return 'PROJECT';
-    case 'CHAT':
-      return 'CHAT';
-    case 'EMAIL_THREAD':
-      return 'THREAD';
-    case 'CHANNEL':
-      return 'CHANNEL';
-    case 'USER':
-      return 'USER';
-    default:
-      return undefined;
-  }
+  return match<GraphqlEntityType, EntityType | undefined>(entityType)
+    .with('DOCUMENT', () => 'DOCUMENT')
+    .with('PROJECT', () => 'PROJECT')
+    .with('CHAT', () => 'CHAT')
+    .with('EMAIL_THREAD', () => 'THREAD')
+    .with('CHANNEL', () => 'CHANNEL')
+    .with('USER', () => 'USER')
+    .otherwise(() => undefined);
 }
 
 type FeedGroup = { key: string; label: string; events: ActivityEvent[] };
