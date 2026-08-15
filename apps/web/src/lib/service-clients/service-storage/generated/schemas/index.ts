@@ -762,7 +762,7 @@ export * from './patchMessageRequestAttachmentsToAdd';
 export * from './patchMessageRequestContent';
 export * from './patchMessageRequestMentions';
 export * from './patchMessageRequestNonce';
-export * from './patchMessageRequestSuppressedPreviewUrls';
+export * from './patchMessageRequestSuppressLinkPreviews';
 export * from './patchProjectRequestV2';
 export * from './patchProjectRequestV2Name';
 export * from './patchProjectRequestV2ProjectParentId';

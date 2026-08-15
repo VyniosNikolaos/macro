@@ -151,7 +151,7 @@ async fn macro_ai_bot_profile_is_builtin_without_context_lookup() {
     );
     let now = Utc::now();
     let message = MutatedMessage {
-        suppressed_preview_urls: vec![],
+        suppress_link_previews: false,
         id: Uuid::new_v4(),
         channel_id: Uuid::new_v4(),
         thread_id: None,
@@ -188,7 +188,7 @@ async fn non_macro_bot_profile_uses_context_lookup() {
     );
     let now = Utc::now();
     let message = MutatedMessage {
-        suppressed_preview_urls: vec![],
+        suppress_link_previews: false,
         id: Uuid::new_v4(),
         channel_id: Uuid::new_v4(),
         thread_id: None,
@@ -251,7 +251,7 @@ async fn message_posted_derives_realtime_and_notification_effects() {
                 },
             ],
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -331,7 +331,7 @@ fn bot_message_posted_event(
             })
             .collect(),
         message: MutatedMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: message_id,
             channel_id,
             thread_id,
@@ -391,7 +391,7 @@ async fn silent_message_posted_skips_notifications_only() {
                 },
             ],
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -455,7 +455,7 @@ async fn mentions_only_skips_failing_invite_lookup_and_sends_mention() {
             },
             participants,
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -511,7 +511,7 @@ async fn message_changed_with_posted_notification_context_sends_notification() {
             channel_id,
             actor: Sender::new_from_bot(bot_id::MACRO_AI_BOT_ID),
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: Some(thread_id),
@@ -801,7 +801,7 @@ async fn user_message_with_bot_mention_enqueues_bot_trigger() {
                 },
             ],
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -862,7 +862,7 @@ async fn user_message_with_uninstalled_bot_mention_does_not_enqueue_bot_trigger(
                 left_at: None,
             }],
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: Uuid::new_v4(),
                 channel_id,
                 thread_id: None,
@@ -943,7 +943,7 @@ async fn document_mentions_notify_participants_except_sender() {
                 },
             ],
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -1207,7 +1207,7 @@ fn attachment(channel_id: Uuid, message_id: Uuid) -> MutatedAttachment {
 fn channel_message(channel_id: Uuid, message_id: Uuid) -> MutatedMessage {
     let now = Utc::now();
     MutatedMessage {
-        suppressed_preview_urls: vec![],
+        suppress_link_previews: false,
         id: message_id,
         channel_id,
         thread_id: None,
@@ -1266,7 +1266,7 @@ async fn handle_publishes_message_posted_and_attachment_created_events() {
             },
             participants: Vec::new(),
             message: MutatedMessage {
-                suppressed_preview_urls: vec![],
+                suppress_link_previews: false,
                 id: message_id,
                 channel_id,
                 thread_id: None,
@@ -1561,7 +1561,7 @@ fn message_posted_with_mentions(
             })
             .collect(),
         message: MutatedMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: message_id,
             channel_id,
             thread_id: None,
@@ -1707,7 +1707,7 @@ fn broker_events_skip_mentions_on_message_changed() {
         channel_id,
         actor: Sender::new_from_user(user("alice@example.com")),
         message: MutatedMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: Uuid::new_v4(),
             channel_id,
             thread_id: None,
@@ -1799,7 +1799,7 @@ fn mention_broker_events_map_message_posted_mentions() {
         },
         participants: Vec::new(),
         message: MutatedMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: message_id,
             channel_id,
             thread_id: None,

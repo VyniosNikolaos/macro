@@ -361,7 +361,7 @@ impl ChannelService for MockService {
     ) -> Result<Vec<ChannelContextMessage>, ChannelMessagesErr> {
         let now = chrono::Utc::now();
         Ok(vec![ChannelContextMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: message_id,
             channel_id,
             thread_id: None,
@@ -1777,7 +1777,7 @@ impl ChannelService for AroundHasItemsService {
     ) -> Result<ChannelMessagesQueryResult, ChannelMessagesErr> {
         let now = chrono::Utc::now();
         let message = ChannelMessage {
-            suppressed_preview_urls: vec![],
+            suppress_link_previews: false,
             id: Uuid::new_v4(),
             channel_id,
             sender_id: "macro|user@example.com".to_string(),
