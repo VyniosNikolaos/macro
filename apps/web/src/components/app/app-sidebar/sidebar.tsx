@@ -16,10 +16,7 @@ import {
   requestInboxFilter,
 } from '@app/features/next-soup/soup-view/inbox-filter-controllers';
 import { requestSearchFocus } from '@app/features/next-soup/soup-view/search-controllers';
-import {
-  InviteModal,
-  setInviteModalOpen,
-} from '@app/features/team-invitations/invite-modal';
+import { setInviteModalOpen } from '@app/features/team-invitations/invite-modal';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
@@ -1646,7 +1643,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           gettingStartedLink={gettingStartedMenuLink()}
         />
       </div>
-      <InviteModal />
+      {/* InviteModal is hosted by Layout now (shared with the icon rail). */}
     </div>
   );
 };

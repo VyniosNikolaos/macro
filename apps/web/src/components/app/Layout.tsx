@@ -38,9 +38,11 @@ import { InCallPanel } from '@channel/Call/InCallPanel';
 import { CreateChannelModal } from '@channel/CreateChannelModal';
 import { IconRailSidebar } from '@components/app/app-sidebar/icon-rail';
 import {
+  AppSidebar,
   GoToHotkeys,
   type SidebarState,
 } from '@components/app/app-sidebar/sidebar';
+import { sidebarMode } from '@components/app/app-sidebar/sidebar-mode';
 import { registerMailtoComposerHandler } from '@components/app/mailtoComposerHandler';
 import {
   isSidebarVisible,
@@ -79,6 +81,7 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { BundleUpdateProgressBar } from './BundleUpdateProgressBar';
 import GlobalShortcuts from './GlobalHotkeys';
 import { ItemDndProvider } from './ItemDragAndDrop';
@@ -354,10 +357,16 @@ function LayoutInner(props: RouteSectionProps) {
   const sidebarCollapsed = createMemo(
     () => isSidebarVisible() && sidebarState() === 'slim'
   );
-  // The icon rail has no room for the in-call panel the expanded sidebar used
-  // to host, so the floating call widgets show whenever a call is active.
+  // The full-text sidebar hosts the in-call panel while expanded; the icon
+  // rail never does. Float the call widgets whenever no sidebar hosts them.
+  const sidebarHostsCallWidgets = () =>
+    sidebarMode() === 'full-text' && sidebarState() !== 'slim';
   const activeCallWidgetVisible = createMemo(
-    () => isSidebarVisible() && !!callCtx?.isInCall() && !callCtx?.isCallPage()
+    () =>
+      isSidebarVisible() &&
+      !sidebarHostsCallWidgets() &&
+      !!callCtx?.isInCall() &&
+      !callCtx?.isCallPage()
   );
   let sidebarOverlayCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -493,11 +502,14 @@ function LayoutInner(props: RouteSectionProps) {
             sortables with the same drag-drop context as the entity drags. */}
         <ItemDndProvider>
           <Show when={isSidebarVisible()}>
-            <IconRailSidebar
+            <Dynamic
+              component={
+                sidebarMode() === 'full-text' ? AppSidebar : IconRailSidebar
+              }
               sidebarState={sidebarState()}
               overlayOpen={sidebarOverlayOpen()}
               onOverlayOpenChange={setSidebarOverlayOpenGuarded}
-              onOpenChange={(open) => {
+              onOpenChange={(open: boolean) => {
                 if (!open) {
                   setSidebarState(isTouchDevice() ? 'hidden' : 'slim');
                   return;
@@ -527,7 +539,11 @@ function LayoutInner(props: RouteSectionProps) {
         </ItemDndProvider>
       </div>
       <CollapsedSidebarIncomingCallWidget
-        visible={isSidebarVisible() && incomingCallWidgetVisible()}
+        visible={
+          isSidebarVisible() &&
+          !sidebarHostsCallWidgets() &&
+          incomingCallWidgetVisible()
+        }
         activeCallWidgetVisible={activeCallWidgetVisible()}
       />
       <CollapsedSidebarCallWidget visible={activeCallWidgetVisible()} />

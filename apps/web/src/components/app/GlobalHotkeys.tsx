@@ -19,6 +19,11 @@ import {
   automationComposerOpen,
   setAutomationComposerOpen,
 } from '@block-automation/component';
+import {
+  SIDEBAR_MODES,
+  setSidebarMode,
+  sidebarMode,
+} from '@components/app/app-sidebar/sidebar-mode';
 import { useLogout } from '@core/auth/logout';
 import { useOpenInstructionsMd } from '@core/component/AI/util/instructions';
 import { toast } from '@core/component/Toast/Toast';
@@ -446,6 +451,33 @@ export default function GlobalShortcuts() {
       displayComponent: () => <ThemeDisplay theme={theme} />,
       onHighlight: () => previewTheme(theme.id),
       onHighlightEnd: clearThemePreview,
+    });
+  });
+
+  const setSidebarModeScope = registerHotkey({
+    scopeId: 'global',
+    description: 'Set sidebar mode',
+    keyDownHandler: () => {
+      return true;
+    },
+    activateCommandScope: true,
+    runWithInputFocused: true,
+    displayPriority: 10,
+    tags: ['sidebar', 'icon rail', 'layout', 'navigation'],
+  });
+
+  SIDEBAR_MODES.forEach((mode) => {
+    registerHotkey({
+      scopeId: setSidebarModeScope.commandScopeId,
+      description: () =>
+        sidebarMode() === mode.id ? `${mode.label} (current)` : mode.label,
+      keyDownHandler: () => {
+        setSidebarMode(mode.id);
+        analytics.track('sidebar_mode_changed', { mode: mode.id });
+        return true;
+      },
+      runWithInputFocused: true,
+      tags: [mode.description],
     });
   });
 
