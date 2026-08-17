@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO agent_session (\n                id, owner_id, thread_id, originating_message_id, bot_id, model,\n                harness, repo_url, acp_session_id, status, status_event_name\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n            RETURNING\n                id, owner_id, thread_id, originating_message_id, bot_id,\n                model, harness, repo_url, acp_session_id, status, status_event_name,\n                created_at, modified_at\n            ",
+  "query": "\n            INSERT INTO agent_session (\n                id, owner_id, thread_id, originating_message_id, bot_id, model,\n                harness, repo_url, workspace, acp_session_id, status,\n                status_event_name\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n            RETURNING\n                id, owner_id, thread_id, originating_message_id, bot_id,\n                model, harness, repo_url, workspace, acp_session_id, status,\n                status_event_name, created_at, modified_at\n            ",
   "describe": {
     "columns": [
       {
@@ -45,26 +45,31 @@
       },
       {
         "ordinal": 8,
-        "name": "acp_session_id",
+        "name": "workspace",
         "type_info": "Text"
       },
       {
         "ordinal": 9,
-        "name": "status",
+        "name": "acp_session_id",
         "type_info": "Text"
       },
       {
         "ordinal": 10,
-        "name": "status_event_name",
+        "name": "status",
         "type_info": "Text"
       },
       {
         "ordinal": 11,
+        "name": "status_event_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "modified_at",
         "type_info": "Timestamptz"
       }
@@ -76,6 +81,7 @@
         "Uuid",
         "Uuid",
         "Uuid",
+        "Text",
         "Text",
         "Text",
         "Text",
@@ -93,6 +99,7 @@
       false,
       false,
       false,
+      false,
       true,
       false,
       true,
@@ -100,5 +107,5 @@
       false
     ]
   },
-  "hash": "f52ab5dea389d06931a7fa43c2ecb8055363f40dcfe1813ac64bf9399b9a9183"
+  "hash": "88c84c73da6cc32ea751221e751367ea41c7c6e81b959ccc9ca4822c6d2da6d6"
 }

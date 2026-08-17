@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod test;
 
-use crate::domain::error::Result;
+use crate::domain::error::{AgentSessionError, Result};
 use crate::domain::model::{
     AgentSession, AgentSessionId, AgentSessionLog, ChannelSession, CreateAgentSessionParams,
     Message, SessionBot, SessionStatus, StoredAgentSessionLog,
@@ -96,6 +96,7 @@ struct AgentSessionRow {
     model: String,
     harness: String,
     repo_url: String,
+    workspace: String,
     acp_session_id: Option<String>,
     status: String,
     status_event_name: Option<String>,
@@ -118,6 +119,7 @@ impl TryFrom<AgentSessionRow> for AgentSession {
             model: row.model,
             harness: row.harness,
             repo_url: row.repo_url,
+            workspace: row.workspace,
             acp_session_id: row.acp_session_id,
             status,
             created_at: row.created_at,
@@ -137,6 +139,8 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             model,
             harness,
             repo_url,
+            workspace,
+            verified_mention,
         } = params;
 
         // The session row and its access grants land together: a crash between
@@ -154,13 +158,14 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             r#"
             INSERT INTO agent_session (
                 id, owner_id, thread_id, originating_message_id, bot_id, model,
-                harness, repo_url, acp_session_id, status, status_event_name
+                harness, repo_url, workspace, acp_session_id, status,
+                status_event_name
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING
                 id, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, acp_session_id, status, status_event_name,
-                created_at, modified_at
+                model, harness, repo_url, workspace, acp_session_id, status,
+                status_event_name, created_at, modified_at
             "#,
             id.as_uuid(),
             owner_id.as_ref(),
@@ -170,13 +175,22 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             model,
             harness,
             repo_url,
+            workspace,
             None::<String>,
             status,
             status_event_name,
         )
         .fetch_one(&mut *transaction)
         .await
-        .context("failed to create agent session")?;
+        .map_err(
+            |error| match error.as_database_error().and_then(|e| e.constraint()) {
+                Some("agent_session_thread_bot_unique") => AgentSessionError::ThreadSessionExists,
+                Some("agent_session_owner_id_fkey") => AgentSessionError::UnknownOwner,
+                _ => AgentSessionError::Unknown(
+                    anyhow::Error::new(error).context("failed to create agent session"),
+                ),
+            },
+        )?;
 
         insert_entity_access_row(
             &mut transaction,
@@ -190,11 +204,12 @@ impl AgentSessionRepo for PgAgentSessionRepo {
         .context("failed to grant the owner access to the agent session")?;
 
         // The channel the bot was mentioned in can steer the session: the
-        // invocation was public there, so that audience is. Read from the
-        // mention rather than taken as a parameter, so a caller cannot claim
-        // a channel the mention did not happen in. A directly created
-        // session has no mention, and so no inherited audience.
-        let origin_channel_id = match originating_message_id {
+        // invocation was public there, so that audience is. Only when the
+        // trigger pipeline observed the mention itself - a caller-claimed
+        // message id must not be able to hand an arbitrary channel access
+        // to the session. A directly created session has no verified
+        // mention, and so no inherited audience.
+        let origin_channel_id = match originating_message_id.filter(|_| verified_mention) {
             Some(message_id) => sqlx::query_scalar!(
                 "SELECT channel_id FROM comms_messages WHERE id = $1",
                 message_id,
@@ -232,8 +247,8 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             r#"
             SELECT
                 id, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, acp_session_id, status, status_event_name,
-                created_at, modified_at
+                model, harness, repo_url, workspace, acp_session_id, status,
+                status_event_name, created_at, modified_at
             FROM agent_session
             WHERE id = $1
             "#,
@@ -263,8 +278,8 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             r#"
             SELECT
                 id, owner_id, thread_id, originating_message_id, bot_id,
-                model, harness, repo_url, acp_session_id, status, status_event_name,
-                created_at, modified_at
+                model, harness, repo_url, workspace, acp_session_id, status,
+                status_event_name, created_at, modified_at
             FROM agent_session
             WHERE thread_id = $1 AND bot_id = $2
             ORDER BY created_at DESC
