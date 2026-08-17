@@ -34,8 +34,8 @@ pub use domain::models::{
     RecordedAction, activity_id, event_time,
 };
 pub use domain::ports::{
-    ActivityFeedPage, ActivityReads, ActivityRealtimePublisher, EntityActivityMap,
-    NoOpActivityRealtimePublisher,
+    ActivityAudienceExpander, ActivityFeedPage, ActivityReads, ActivityRealtimePublisher,
+    EntityActivityMap, NoOpActivityAudienceExpander, NoOpActivityRealtimePublisher,
 };
 #[cfg(feature = "realtime")]
 pub use domain::realtime::{
