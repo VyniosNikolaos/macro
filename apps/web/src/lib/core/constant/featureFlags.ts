@@ -583,11 +583,14 @@ export const BOT_MANAGEMENT_OVERRIDE =
 // gate reacts when PostHog answers (and so callers can wait instead of
 // treating "flags not loaded yet" as "off").
 export const ENABLE_ONBOARDING_V4_FLAG = 'enable-onboarding-v4';
-// Honor an explicit VITE_ENABLE_ONBOARDING_V4=false (don't coerce it to
-// undefined), else default on in dev and defer to PostHog in prod.
+// Honor an explicit VITE_ENABLE_ONBOARDING_V4 either way (don't coerce false to
+// undefined), else off when running the local dev server — signing in locally
+// should drop you straight into the app, not the stepper — on in dev otherwise,
+// and deferred to PostHog in prod. Set VITE_ENABLE_ONBOARDING_V4=true to work on
+// the flow locally.
 export const ENABLE_ONBOARDING_V4_OVERRIDE =
   getFeatureFlagOverride('ENABLE_ONBOARDING_V4') ??
-  (DEV_MODE_ENV ? true : undefined);
+  (LOCAL_ONLY ? false : DEV_MODE_ENV ? true : undefined);
 
 // Calendar UI: calendar surfaces and the elevated-permissions upgrade flow
 // that re-runs Google consent for inboxes connected before the calendar

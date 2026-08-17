@@ -50,7 +50,6 @@ import { useIsAuthenticated } from '@core/auth';
 import {
   ENABLE_REMINDERS_FLAG,
   ENABLE_REMINDERS_OVERRIDE,
-  LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSoloSettings } from '@core/constant/SettingsState';
@@ -316,12 +315,7 @@ function NewOnboardingRedirect() {
   const onboardingV4 = useOnboardingV4Flag();
 
   createEffect(() => {
-    if (
-      LOCAL_ONLY ||
-      !onboardingV4().enabled ||
-      isMobile() ||
-      isNativeMobilePlatform()
-    ) {
+    if (!onboardingV4().enabled || isMobile() || isNativeMobilePlatform()) {
       return;
     }
     const data = userInfoQuery.data;

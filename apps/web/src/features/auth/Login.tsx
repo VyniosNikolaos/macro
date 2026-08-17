@@ -4,7 +4,6 @@ import { useOnboardingV4Flag } from '@app/features/setup/flow/useOnboardingV4Fla
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { GOOGLE_GMAIL_IDP } from '@core/auth/email';
 import { LoadingBlock } from '@core/component/LoadingBlock';
-import { LOCAL_ONLY } from '@core/constant/featureFlags';
 import { useEmailLinks } from '@core/email-link';
 import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
@@ -83,12 +82,12 @@ function PostAuthGate() {
     userInfoQuery.data.tutorialComplete === false;
 
   const needsOnboarding = () =>
-    !LOCAL_ONLY && onboardingV4().enabled && isFirstTimeDesktopUser();
+    onboardingV4().enabled && isFirstTimeDesktopUser();
 
   // Don't redirect into the app while the gate is still unknown: a first-time
   // user would land on home for a beat and then get yanked to /onboarding.
   const waitingOnFlag = () =>
-    !LOCAL_ONLY && onboardingV4().loading && isFirstTimeDesktopUser();
+    onboardingV4().loading && isFirstTimeDesktopUser();
 
   return (
     <Suspense fallback={<LoadingBlock />}>

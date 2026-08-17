@@ -37,7 +37,6 @@ import { clearLocalAuthSession } from '@core/auth/logout';
 import { ChatAttachmentsInit } from '@core/component/AI/signal/globalAttachments';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
-import { LOCAL_ONLY } from '@core/constant/featureFlags';
 import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
 import { QuickAccessProvider } from '@core/context/quickAccess';
@@ -315,8 +314,6 @@ function SetupRedirect() {
  * flag-off web users on /login and native users on MobileOnboarding.
  */
 function SetupRoute() {
-  if (LOCAL_ONLY) return <Navigate href="/" />;
-
   const onboardingV4 = useOnboardingV4Flag();
 
   return (
@@ -334,8 +331,6 @@ function SetupRoute() {
  * mid-flow) would otherwise get kicked to /login and lose its ?next.
  */
 function OnboardingRoute() {
-  if (LOCAL_ONLY) return <Navigate href="/" />;
-
   const onboardingV4 = useOnboardingV4Flag();
 
   return (
