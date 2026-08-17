@@ -168,11 +168,9 @@ pub(crate) type DssSoupRealtimeService = SoupRealtimeConsumerService<SoupTopicCo
 pub(crate) type DssNotificationRealtimeService =
     notification::domain::service::WebSocketNotificationConsumerService<
         notification::outbound::notification_consumer::NotificationTopicConsumer<
-            notification::domain::models::queue_message::RealtimeNotif<
-                model_notifications::NotifEvent,
-            >,
+            model_notifications::NotifEvent,
         >,
-        notification::domain::models::queue_message::RealtimeNotif<model_notifications::NotifEvent>,
+        model_notifications::NotifEvent,
     >;
 
 /// GraphQL Soup schema wired to the DSS services; the `ApiContext` state
@@ -195,7 +193,12 @@ pub(crate) type DssGraphqlSoupSchema = complete_graph::SharedSoupSchema<
     complete_graph::EmailServiceEmailContentReader<DssEmailService, EntityAccessService>,
     Arc<FavoritesServiceType>,
     Arc<EntityAccessService>,
+    DssActivityReader,
 >;
+
+/// GraphQL activity reader over the Postgres activity log (readonly pool).
+pub(crate) type DssActivityReader =
+    complete_graph::ActivityPortReader<activity::outbound::pg_activity_repo::PgActivityRepo>;
 
 type SystemPropertiesService = SystemPropertiesServiceImpl<PgSystemPropertiesRepository>;
 pub(crate) type NotificationIngressType = SqsNotificationIngress<SqsQueue>;
@@ -482,6 +485,7 @@ pub(crate) struct ApiContext {
     pub soup_router_state: DssSoupState,
     pub graphql_soup_schema: DssGraphqlSoupSchema,
     pub graphql_notification_reader: Arc<ai_tools::ToolNotificationService>,
+    pub activity_reader: DssActivityReader,
     pub graphql_entity_mutation_service: Arc<DssEntityMutationService>,
     pub favorites_state: DssFavoritesState,
     pub favorites_service: Arc<FavoritesServiceType>,

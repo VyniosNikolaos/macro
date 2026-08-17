@@ -8,7 +8,7 @@ import type {
 import type { ResizeZoneCtx } from '@core/component/Resize/types';
 import { isBlockAlias, resolveBlockAlias } from '@core/constant/allBlocks';
 import { settingsTabToSlug } from '@core/constant/settingsTabsConfig';
-import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type {
   BlockInstanceHandle,
   BlockOrchestrator,
@@ -148,7 +148,8 @@ export type SplitMount = BlockMount | ComponentMount;
 
 export type PopoverSplitOptions = {
   content: SplitContent;
-  onClose?: () => void;
+  /** Handles a close request. Call `close` to finish closing the popover. */
+  onClose?: (close: () => void) => void;
 };
 
 export type PopoverSplitHandle = {
@@ -1363,7 +1364,7 @@ export function createSplitLayout(
    * Reactive.
    */
   function canEngagePreview(controllerId: SplitId): boolean {
-    if (isMobile()) return false;
+    if (isTouchDevice()) return false;
     const controller = findSplitById(controllerId);
     if (
       !controller ||
@@ -1382,7 +1383,7 @@ export function createSplitLayout(
     controllerId: SplitId,
     viewerId: SplitId
   ): boolean {
-    if (isMobile()) return false;
+    if (isTouchDevice()) return false;
     const controllerIndex = splitIndexById(controllerId);
     const controller = state.splits[controllerIndex];
     const viewer = state.splits[controllerIndex + 1];
@@ -1454,7 +1455,7 @@ export function createSplitLayout(
 
   function engagePreviewMode(controllerId: SplitId) {
     // Mobile shows one panel at a time; a side-by-side viewer cannot exist.
-    if (isMobile()) return;
+    if (isTouchDevice()) return;
     const controller = findSplitById(controllerId);
     if (!controller || !isPreviewControllerContent(controller.content)) return;
     if (state.previewPairs[controllerId] !== undefined) return;
@@ -1771,30 +1772,42 @@ export function createSplitLayout(
     focusLock.acquire();
 
     const mount = createPinnedMount(orchestrator, options.content);
+    let closed = false;
+
+    const close = () => {
+      if (closed) return;
+      closed = true;
+
+      // Release focus lock to return focus to previously focused element
+      focusLock.release();
+
+      setState('popovers', (prev) => {
+        const newMap = new Map(prev);
+        const popover = newMap.get(id);
+        if (popover) {
+          newMap.set(id, { ...popover, isOpen: false });
+          // Schedule cleanup after a brief delay to allow for animations
+          setTimeout(() => {
+            setState('popovers', (prev) => {
+              const cleanupMap = new Map(prev);
+              cleanupMap.delete(id);
+              return cleanupMap;
+            });
+          }, 300);
+        }
+        return newMap;
+      });
+    };
 
     const handle: PopoverSplitHandle = {
       id,
       close: () => {
-        // Release focus lock to return focus to previously focused element
-        focusLock.release();
-
-        setState('popovers', (prev) => {
-          const newMap = new Map(prev);
-          const popover = newMap.get(id);
-          if (popover) {
-            newMap.set(id, { ...popover, isOpen: false });
-            // Schedule cleanup after a brief delay to allow for animations
-            setTimeout(() => {
-              setState('popovers', (prev) => {
-                const cleanupMap = new Map(prev);
-                cleanupMap.delete(id);
-                return cleanupMap;
-              });
-            }, 300);
-          }
-          return newMap;
-        });
-        options.onClose?.();
+        if (closed) return;
+        if (options.onClose) {
+          options.onClose(close);
+          return;
+        }
+        close();
       },
       isOpen: () => {
         const popover = state.popovers.get(id);

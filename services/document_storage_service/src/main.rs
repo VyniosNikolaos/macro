@@ -93,12 +93,9 @@ use macro_event_broker::{KafkaEventPublisher, MacroEventBrokerService};
 use macro_service_urls::AiEditingWorkerUrl;
 use macro_service_urls::{ConnectionGatewayUrl, LexicalServiceUrl, SyncServiceUrl};
 use macro_sha_count_client::Redis;
-use notification::domain::{
-    models::queue_message::RealtimeNotif,
-    service::{
-        NotificationReaderService, PlatformArnConfig, SqsNotificationIngress,
-        WebSocketNotificationConsumerService,
-    },
+use notification::domain::service::{
+    NotificationReaderService, PlatformArnConfig, SqsNotificationIngress,
+    WebSocketNotificationConsumerService,
 };
 use notification::outbound::{notification_consumer::NotificationTopicConsumer, queue::SqsQueue};
 use opensearch_client::OpensearchClient;
@@ -929,6 +926,14 @@ async fn main() -> anyhow::Result<()> {
             macro_agent_tool_context,
             macro_agent_tools,
         )),
+        Arc::new(
+            channel_bots::domain::trigger_detector::MentionOrInferredDetector::new(
+                channels_service.clone(),
+                Arc::new(channel_bots::outbound::FastModelTriggerClassifier::new(
+                    ai_usage::pg_recorder(db.clone()),
+                )),
+            ),
+        ),
     );
     bot_trigger_router.spawn(bot_trigger_receiver);
 
@@ -957,7 +962,7 @@ async fn main() -> anyhow::Result<()> {
 
     let websocket_notification_consumer_service =
         Arc::new(WebSocketNotificationConsumerService::new(
-            NotificationTopicConsumer::<RealtimeNotif<model_notifications::NotifEvent>>::from_env(
+            NotificationTopicConsumer::<model_notifications::NotifEvent>::from_env(
                 config.kafka_brokers.as_ref(),
             )
             .map_err(|error| {
@@ -1209,6 +1214,11 @@ async fn main() -> anyhow::Result<()> {
             websocket_notification_consumer_service,
         ),
         graphql_notification_reader,
+        // GraphQL reads the activity log through the readonly pool; the
+        // Kafka consumer's writer-pool repo above is separate on purpose.
+        activity_reader: complete_graph::ActivityPortReader::new(Arc::new(
+            activity::outbound::pg_activity_repo::PgActivityRepo::new(readonly_db.clone()),
+        )),
         graphql_entity_mutation_service,
         github_sync_service: Arc::new(github_sync_service_impl),
         foreign_entity_state,

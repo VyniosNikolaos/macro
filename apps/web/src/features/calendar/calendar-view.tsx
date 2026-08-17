@@ -40,8 +40,13 @@ import {
   CalendarViewContextProvider,
   useCalendarView,
 } from './CalendarViewContext';
+import {
+  CalendarFocusContextProvider,
+  type CalendarFocusTarget,
+} from './calendar-focus-target';
+import { calendarPeriodLabel } from './calendar-label';
 import { SelectedEventDetails } from './events/EventDetailsPopover';
-import { EventEditorDialog } from './events/EventEditorDialog';
+import { useOpenEventComposer } from './events/useOpenEventComposer';
 import { useCalendarHotkeys } from './use-calendar-hotkeys';
 import './calendar.css';
 
@@ -53,13 +58,15 @@ const formatMonthTitle = new Intl.DateTimeFormat(undefined, {
 }).format;
 
 /** A calendar-focused workspace view backed by buffered FullCalendar pages. */
-export function CalendarView() {
+export function CalendarView(props: { focusTarget?: CalendarFocusTarget }) {
   return (
-    <CalendarViewContextProvider>
-      <CalendarPagerContextProvider>
-        <CalendarPagerRoot />
-      </CalendarPagerContextProvider>
-    </CalendarViewContextProvider>
+    <CalendarFocusContextProvider target={() => props.focusTarget}>
+      <CalendarViewContextProvider>
+        <CalendarPagerContextProvider>
+          <CalendarPagerRoot />
+        </CalendarPagerContextProvider>
+      </CalendarViewContextProvider>
+    </CalendarFocusContextProvider>
   );
 }
 
@@ -129,7 +136,7 @@ function CalendarPages() {
                 !(
                   event.target instanceof Element &&
                   event.target.closest(
-                    'button, input, select, textarea, [role="button"]'
+                    'button, input, select, textarea, [role="button"], .fc-event'
                   )
                 )
               }
@@ -175,9 +182,9 @@ function CalendarWorkspace() {
   const calendarPager = useCalendarPager();
   const pager = usePager<CalendarPageId>();
   const calendarView = useCalendarView();
+  const openEventComposer = useOpenEventComposer();
   const initialDate = new Date();
   const today = createLocalToday();
-  const [createEventOpen, setCreateEventOpen] = createSignal(false);
 
   useCalendarHotkeys({
     scopeId: panel.splitHotkeyScope,
@@ -191,6 +198,9 @@ function CalendarWorkspace() {
     () => calendarPager.activeDateInfo()?.view.calendar.getDate() ?? initialDate
   );
   const dateTitle = createMemo(() => formatMonthTitle(currentDate()));
+  const periodLabel = createMemo(() =>
+    calendarPeriodLabel(calendarView.displaySettings.periodView).toLowerCase()
+  );
   const visibleRange = createMemo(() => {
     const dateInfo = calendarPager.activeDateInfo();
     return dateInfo ? { end: dateInfo.end, start: dateInfo.start } : undefined;
@@ -265,8 +275,7 @@ function CalendarWorkspace() {
                 variant="ghost"
                 size="sm"
                 class="rounded-lg px-2"
-                label="New event"
-                onClick={() => setCreateEventOpen(true)}
+                onClick={() => openEventComposer()}
               >
                 <PlusIcon class="size-3.5" />
                 New event
@@ -277,7 +286,7 @@ function CalendarWorkspace() {
                   variant="ghost"
                   size="icon-sm"
                   class="rounded-lg"
-                  label="Previous period"
+                  label={`Previous ${periodLabel()}`}
                   hotkey={TOKENS.calendar.period.previous}
                   onClick={() => void pager.previous()}
                 >
@@ -287,7 +296,7 @@ function CalendarWorkspace() {
                   variant="ghost"
                   size="icon-sm"
                   class="rounded-lg"
-                  label="Next period"
+                  label={`Next ${periodLabel()}`}
                   hotkey={TOKENS.calendar.period.next}
                   onClick={() => void pager.next()}
                 >
@@ -308,10 +317,6 @@ function CalendarWorkspace() {
         timeFormat={() => calendarView.displaySettings.timeFormat}
         onClose={calendarView.closeEventDetails}
       />
-
-      <Show when={createEventOpen()}>
-        <EventEditorDialog open onClose={() => setCreateEventOpen(false)} />
-      </Show>
 
       <main class="calendar-view flex size-full min-h-0">
         <div class="calendar-view-content flex min-w-0 min-h-0 flex-1 flex-col">
