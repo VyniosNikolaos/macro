@@ -1,4 +1,10 @@
 import { FavoriteIcon } from '@app/features/favorites/FavoriteIcon';
+import {
+  compileToAst,
+  defineQueryFilters,
+  queryStateFrom,
+} from '@app/features/next-soup/filters/filter-store';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   favoriteIconType,
@@ -21,9 +27,14 @@ import {
   MenuSeparator,
 } from '@core/component/ContextMenu';
 import type { EntityIconSelector } from '@core/component/EntityIcon';
+import {
+  ENABLE_GRAPHQL_SOUP_FLAG,
+  ENABLE_GRAPHQL_SOUP_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { Tooltip as KobalteTooltip } from '@kobalte/core/tooltip';
+import { unreadNotificationsByChannel as groupUnreadNotificationsByChannel } from '@notifications/channel-notification-discovery';
 import { isChannelNotification } from '@notifications/notification-helpers';
 import { getChannelNotificationParams } from '@notifications/notification-navigation';
 import type { UnifiedNotification } from '@notifications/types';
@@ -34,6 +45,7 @@ import {
   useRemoveFavoriteMutation,
   useReorderFavoritesMutation,
 } from '@queries/favorites/favorites';
+import { useSoupAstItemsQuery } from '@queries/soup/items';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
 import { makePersisted } from '@solid-primitives/storage';
 import {
@@ -182,10 +194,52 @@ export const FavoritesSection = (props: {
   // suspend or crash the sidebar; the section just stays hidden until loaded.
   const favoritesData = useFavoritesData();
   const notificationSource = useGlobalNotificationSource();
+  const graphqlSoupFlag = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
+    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
+  });
+  const usesGraphql = () => graphqlSoupFlag().enabled;
 
   const favorites = () => favoritesData()?.favorites ?? [];
-  const unreadNotificationsByChannel = createMemo(() => {
+  const favoriteChannelIds = createMemo(() =>
+    [
+      ...new Set(
+        favorites()
+          .filter((favorite) => favorite.entityType === 'channel')
+          .map((favorite) => favorite.entityId)
+      ),
+    ].sort()
+  );
+
+  // Favorites are a finite set (capped at 500). Query their notification
+  // edges directly instead of treating the global notification hot cache as
+  // complete history.
+  const favoriteChannelsQuery = useSoupAstItemsQuery(
+    () => ({
+      params: {
+        limit: Math.max(1, favoriteChannelIds().length),
+        sort_method: 'updated_at',
+      },
+      body: compileToAst(
+        queryStateFrom(
+          defineQueryFilters({
+            include: { channelId: favoriteChannelIds() },
+          })
+        )
+      ),
+    }),
+    () => ({
+      enabled: usesGraphql() && favoriteChannelIds().length > 0,
+    })
+  );
+
+  const graphqlUnreadNotificationsByChannel = createMemo(() =>
+    groupUnreadNotificationsByChannel(
+      favoriteChannelsQuery.data?.entities ?? []
+    )
+  );
+  const sourceUnreadNotificationsByChannel = createMemo(() => {
     const notificationsByChannel = new Map<string, UnifiedNotification[]>();
+    if (usesGraphql()) return notificationsByChannel;
     for (const notification of notificationSource.notifications()) {
       if (
         !isChannelNotification(notification) ||
@@ -195,14 +249,16 @@ export const FavoritesSection = (props: {
         continue;
       }
       const notifications = notificationsByChannel.get(notification.entity_id);
-      if (notifications) {
-        notifications.push(notification);
-      } else {
-        notificationsByChannel.set(notification.entity_id, [notification]);
-      }
+      if (notifications) notifications.push(notification);
+      else notificationsByChannel.set(notification.entity_id, [notification]);
     }
     return notificationsByChannel;
   });
+  const unreadNotificationsByChannel = createMemo(() =>
+    usesGraphql()
+      ? graphqlUnreadNotificationsByChannel()
+      : sourceUnreadNotificationsByChannel()
+  );
 
   return (
     <Show when={props.sidebarState === 'expanded' && favorites().length > 0}>

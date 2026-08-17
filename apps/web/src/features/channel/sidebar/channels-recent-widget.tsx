@@ -3,6 +3,7 @@ import {
   defineQueryFilters,
   queryStateFrom,
 } from '@app/features/next-soup/filters/filter-store';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { navigateToChannelMessage } from '@block-channel/utils/link';
 import { ReadonlyThread } from '@channel/StandaloneThread';
@@ -22,12 +23,20 @@ import {
   MenuItem,
   MenuSeparator,
 } from '@core/component/ContextMenu';
+import {
+  ENABLE_GRAPHQL_SOUP_FLAG,
+  ENABLE_GRAPHQL_SOUP_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { compareDateDesc } from '@core/util/date';
-import { type ChannelEntity, EntityRowIcon, isChannelEntity } from '@entity';
+import { EntityRowIcon, isChannelEntity } from '@entity';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { Tooltip as KobalteTooltip } from '@kobalte/core/tooltip';
 import { openNotification } from '@notifications';
+import {
+  type ChannelNotificationSummary,
+  mergeRecentAndUnreadChannels,
+} from '@notifications/channel-notification-discovery';
 import {
   isChannelNotification,
   notificationIsRead,
@@ -61,11 +70,7 @@ const RECENT_CHANNELS_LIMIT = 100;
 const RECENT_CHANNELS_STALE_MS = 5 * 60 * 1000;
 
 /** A channel from the recent-channels query plus its unread notifications. */
-interface RecentChannel {
-  entity: ChannelEntity;
-  /** Unread channel notifications, newest first. */
-  unread: UnifiedNotification[];
-}
+type RecentChannel = ChannelNotificationSummary;
 
 function unreadCountLabel(count: number): string {
   return count > 99 ? '99+' : String(count);
@@ -316,6 +321,10 @@ export const ChannelsRecentWidget = (props: {
   headerWrapper?: (header: JSX.Element) => JSX.Element;
 }) => {
   const notificationSource = useGlobalNotificationSource();
+  const graphqlSoupFlag = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
+    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
+  });
+  const usesGraphql = () => graphqlSoupFlag().enabled;
   const [unreadOnly, setUnreadOnly] = makePersisted(createSignal(false), {
     name: 'sidebar-recent-channels-unread-only',
   });
@@ -334,8 +343,36 @@ export const ChannelsRecentWidget = (props: {
     () => ({ staleTime: RECENT_CHANNELS_STALE_MS })
   );
 
-  const unreadByChannel = createMemo(() => {
+  // Notification predicates discover unread candidates on the server. They
+  // are independent EXISTS clauses, so attached active notification edges are
+  // still the authority for the final unread classification and count.
+  const unreadChannelsQuery = useSoupAstItemsQuery(
+    () => ({
+      params: { limit: RECENT_CHANNELS_LIMIT, sort_method: 'updated_at' },
+      body: compileToAst(
+        queryStateFrom(
+          defineQueryFilters({
+            include: {
+              channelImportance: true,
+              channelIsParticipant: [true],
+              channelDone: false,
+              channelSeen: false,
+            },
+          })
+        )
+      ),
+    }),
+    () => ({
+      enabled: usesGraphql(),
+      staleTime: RECENT_CHANNELS_STALE_MS,
+    })
+  );
+
+  // Preserve the existing NotificationSource-backed discovery path while the
+  // GraphQL facade is disabled.
+  const sourceUnreadByChannel = createMemo(() => {
     const map = new Map<string, UnifiedNotification[]>();
+    if (usesGraphql()) return map;
     for (const notification of notificationSource.notifications()) {
       if (notification.entity_type !== 'channel') continue;
       if (notificationIsRead(notification)) continue;
@@ -343,36 +380,30 @@ export const ChannelsRecentWidget = (props: {
       if (list) list.push(notification);
       else map.set(notification.entity_id, [notification]);
     }
-    // `unread[0]` must be the newest notification (it aims open-at-unread and
-    // the hover previews); don't rely on the source list's ordering.
     for (const list of map.values()) {
-      list.sort((a, b) => compareDateDesc(a.created_at, b.created_at));
+      list.sort((left, right) =>
+        compareDateDesc(left.created_at, right.created_at)
+      );
     }
     return map;
   });
 
-  // A channel can carry unread notifications while being older than the
-  // newest-RECENT_CHANNELS_LIMIT window the main query returns. Fetch those
-  // stragglers by id so an unread channel always makes the list.
   const missingUnreadChannelIds = createMemo(() => {
-    const entities = channelsQuery.data?.entities;
-    if (!entities) return [];
+    if (usesGraphql()) return [];
     const listed = new Set(
-      entities.filter(isChannelEntity).map((entity) => entity.id)
+      (channelsQuery.data?.entities ?? [])
+        .filter(isChannelEntity)
+        .map((entity) => entity.id)
     );
-    // Sorted so the derived query key is stable across notification reorders.
-    return [...unreadByChannel().keys()].filter((id) => !listed.has(id)).sort();
+    return [...sourceUnreadByChannel().keys()]
+      .filter((id) => !listed.has(id))
+      .sort();
   });
 
   const missingUnreadChannelsQuery = useSoupAstItemsQuery(
     () => ({
-      // Sized to the id list, not RECENT_CHANNELS_LIMIT: this query must
-      // return every exact-id match, and a fixed limit would silently drop
-      // the oldest ones past it. (The server's [20, 500] clamp covers only
-      // the merged page; the channel SQL takes this limit verbatim, safe
-      // here because the exact-id filter runs before LIMIT.)
       params: {
-        limit: missingUnreadChannelIds().length,
+        limit: Math.max(1, missingUnreadChannelIds().length),
         sort_method: 'updated_at',
       },
       body: compileToAst(
@@ -388,15 +419,13 @@ export const ChannelsRecentWidget = (props: {
       ),
     }),
     () => ({
-      enabled: missingUnreadChannelIds().length > 0,
+      enabled: !usesGraphql() && missingUnreadChannelIds().length > 0,
       staleTime: RECENT_CHANNELS_STALE_MS,
     })
   );
 
-  const recentChannels = createMemo<RecentChannel[]>(() => {
-    const unread = unreadByChannel();
-    // Only ids still missing may merge in: placeholder rows from a previous id
-    // set must not duplicate a listed channel or resurrect a since-read one.
+  const sourceRecentChannels = createMemo<RecentChannel[]>(() => {
+    const unread = sourceUnreadByChannel();
     const missing = new Set(missingUnreadChannelIds());
     const channels = [
       ...(channelsQuery.data?.entities ?? []).filter(isChannelEntity),
@@ -404,19 +433,27 @@ export const ChannelsRecentWidget = (props: {
         .filter(isChannelEntity)
         .filter((entity) => missing.has(entity.id)),
     ].map((entity) => ({ entity, unread: unread.get(entity.id) ?? [] }));
-    // Same ordering as the channels soup view…
-    channels.sort((a, b) =>
+    channels.sort((left, right) =>
       compareDateDesc(
-        a.entity.sortTs ?? a.entity.updatedAt,
-        b.entity.sortTs ?? b.entity.updatedAt
+        left.entity.sortTs ?? left.entity.updatedAt,
+        right.entity.sortTs ?? right.entity.updatedAt
       )
     );
-    // …but with unread channels sorted to the top.
     return [
       ...channels.filter((channel) => channel.unread.length > 0),
       ...channels.filter((channel) => channel.unread.length === 0),
     ];
   });
+
+  const graphqlRecentChannels = createMemo<RecentChannel[]>(() =>
+    mergeRecentAndUnreadChannels(
+      channelsQuery.data?.entities ?? [],
+      unreadChannelsQuery.data?.entities ?? []
+    )
+  );
+  const recentChannels = createMemo(() =>
+    usesGraphql() ? graphqlRecentChannels() : sourceRecentChannels()
+  );
   const visibleChannels = createMemo(() =>
     unreadOnly()
       ? recentChannels().filter((channel) => channel.unread.length > 0)
@@ -487,6 +524,8 @@ export const ChannelsRecentWidget = (props: {
     el.scrollTop = 0;
   };
 
+  // Keep the existing idle-scroll snap, but do not refetch Soup queries in
+  // response to notifications.
   const unsubscribe = notificationSource.subscribe((notification) => {
     if (!isChannelNotification(notification)) return;
     snapToTopIfIdle();
