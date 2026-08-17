@@ -109,10 +109,22 @@ describe('parseCron', () => {
     expect(parseCron('0 0 9 * * 6,2').daysOfWeek).toEqual(['2', '6']);
   });
 
-  it('accepts the seven-field form with a trailing year', () => {
-    const parts = parseCron('0 0 9 * * 2 2026');
+  it('accepts the seven-field form when the year constrains nothing', () => {
+    const parts = parseCron('0 0 9 * * 2 *');
     expect(parts.frequency).toBe('week');
     expect(parts.daysOfWeek).toEqual(['2']);
+  });
+
+  it('falls back for a specific year, which the picker cannot show', () => {
+    // "9am Mondays during 2026" is a real constraint with no control to express
+    // it. Reading it as plain weekly would present it as firing forever, and
+    // saving from that view would drop the year without saying so.
+    const parts = parseCron('0 0 9 * * 2 2026');
+
+    expect(parts.daysOfWeek).toEqual(['2', '3', '4', '5', '6']);
+    // The time is still readable, and losing it as well would reset the hour
+    // the reminder was actually set for.
+    expect(parts.time).toBe('09:00');
   });
 
   it('keeps the time it could read even when the rest is unrepresentable', () => {
@@ -312,5 +324,41 @@ describe('normalizeCron', () => {
     for (const cron of ['0 0 9 * * *', '0 0 9 * * 2-6', '0 30 14 15 * *']) {
       expect(normalizeCron(normalizeCron(cron))).toBe(normalizeCron(cron));
     }
+  });
+
+  // Every expression the picker cannot express parses to the same weekly
+  // fallback. Normalizing through that would make two unrelated schedules
+  // compare equal — and an equality check answering "unchanged" about a real
+  // change does not send the patch, silently discarding the user's edit.
+  it('leaves an expression it cannot represent exactly as it was', () => {
+    for (const cron of ['0 0 9 1 3 *', 'not a cron', '0 9 * * *', '']) {
+      expect(normalizeCron(cron)).toBe(cron);
+    }
+  });
+
+  it('keeps two different unrepresentable schedules distinct', () => {
+    expect(normalizeCron('0 0 9 1 3 *')).not.toBe(normalizeCron('0 0 9 1 6 *'));
+  });
+
+  it('does not equate an unrepresentable schedule with the fallback it parses to', () => {
+    // The specific collision that would swallow an edit: opening a March-only
+    // reminder and saving it as weekdays has to register as a change.
+    const marchOnly = '0 0 9 1 3 *';
+    const weekdays = buildCron(parseCron(marchOnly));
+
+    expect(normalizeCron(marchOnly)).not.toBe(normalizeCron(weekdays));
+  });
+
+  it('treats a year constraint as unrepresentable', () => {
+    // The picker has no way to show a year, so rewriting the expression would
+    // drop the constraint while reporting the schedule as unchanged.
+    const yearly = '0 0 9 * * 2 2026';
+
+    expect(normalizeCron(yearly)).toBe(yearly);
+  });
+
+  it('still normalizes a seven-field expression with an open year', () => {
+    // `*` in the year field constrains nothing, so it stays representable.
+    expect(normalizeCron('0 0 9 * * * *')).toBe('0 0 9 * * *');
   });
 });

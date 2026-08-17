@@ -437,8 +437,12 @@ where
         // Whether this patch is what brought the reminder back into service. An
         // explicit schedule is not a revival: the owner named a firing, and
         // recomputing one over the top of it would discard what they chose.
-        let patch_revived =
-            schedule.is_none() && (enabled == Some(true) || completed == Some(false));
+        //
+        // `enabled` is the only thing that can freeze a series. Completion no
+        // longer stops a recurring reminder coming due — it settles one firing,
+        // not the arrangement — so its `next_run_at` keeps advancing while
+        // completed and cannot go stale that way.
+        let patch_revived = schedule.is_none() && enabled == Some(true);
 
         let update = ReminderUpdate {
             description,

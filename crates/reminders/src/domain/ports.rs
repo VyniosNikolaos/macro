@@ -6,9 +6,9 @@ use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
 use crate::domain::models::{
-    Completion, CreateReminder, DeliveryOutcome, DueFiring, DueReminder, NewReminder, Reminder,
-    ReminderBatch, ReminderDispatchMessage, ReminderError, ReminderFilter, ReminderForSoup,
-    ReminderPage, ReminderPatch, ReminderUpdate, SoupReminderQuery, SweepSummary,
+    Advance, Completion, CreateReminder, DeliveryOutcome, DueFiring, DueReminder, NewReminder,
+    Reminder, ReminderBatch, ReminderDispatchMessage, ReminderError, ReminderFilter,
+    ReminderForSoup, ReminderPage, ReminderPatch, ReminderUpdate, SoupReminderQuery, SweepSummary,
 };
 
 /// Source of the current time.
@@ -195,13 +195,13 @@ pub trait ReminderDispatchRepo: Send + Sync + 'static {
     /// Implementations must not advance a reminder whose `next_run_at` has
     /// moved off `scheduled_for`: that means the owner rescheduled mid-flight,
     /// and their choice outranks the series. Declining to advance is reported
-    /// as [`Completion::Superseded`] rather than passed over in silence, so a
+    /// as [`Completion::NotAdvanced`] rather than passed over in silence, so a
     /// no-op that is expected cannot be mistaken for one that is not.
     fn complete_occurrence_and_advance(
         &self,
         reminder_id: Uuid,
         scheduled_for: DateTime<Utc>,
-        advance_to: Option<DateTime<Utc>>,
+        advance: Option<Advance>,
     ) -> impl Future<Output = Result<Completion, Self::Err>> + Send;
 
     /// Retract the notifications this reminder's firings before `before` left

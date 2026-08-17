@@ -293,9 +293,11 @@ export function reminderEditPatch(
   if (!sameSchedule(original.schedule, next.schedule)) {
     patch.schedule = next.schedule;
     // Giving a reminder that was marked done a new schedule is a request for it
-    // to fire again, and the dispatcher skips completed reminders — so without
-    // clearing the flag the time the user just picked would silently never
-    // arrive. A description-only edit leaves it alone.
+    // to fire again. For a one-shot that is load-bearing: the dispatcher skips
+    // a completed one, so without clearing the flag the time just picked would
+    // silently never arrive. For a recurring one it is presentational — the
+    // series keeps running either way — but a reminder that fires tomorrow
+    // should not sit under Done today. A description-only edit leaves it alone.
     if (original.completed) patch.completed = false;
   }
 

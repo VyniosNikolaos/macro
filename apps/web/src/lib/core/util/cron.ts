@@ -65,7 +65,12 @@ export function isValidTime(value: string): boolean {
   if (!match) return false;
 
   const [, hour, minute] = match;
-  return Number(hour) <= 23 && Number(minute) <= 59;
+  const h = Number(hour);
+  const m = Number(minute);
+  // Both bounds, though the digits-only pattern already rules out negatives.
+  // A range check that only looks one way invites the next reader to widen the
+  // pattern and not notice the other half was never there.
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
 }
 
 /**
@@ -78,7 +83,15 @@ export function isValidTime(value: string): boolean {
  */
 export function isValidCronParts(parts: CronParts): boolean {
   if (!isValidTime(parts.time)) return false;
-  if (parts.frequency === 'week') return parts.daysOfWeek.length > 0;
+  if (parts.frequency === 'week') {
+    // Every value checked, not just the count: a stray day outside 1-7 would
+    // build an expression the backend rejects, and "at least one selected" is
+    // only the constraint the buttons happen to enforce today.
+    return (
+      parts.daysOfWeek.length > 0 &&
+      parts.daysOfWeek.every((day) => DOW_VALUES.includes(day))
+    );
+  }
   if (parts.frequency === 'month') {
     const day = Number(parts.dayOfMonth);
     return Number.isInteger(day) && day >= 1 && day <= 31;
@@ -230,42 +243,71 @@ function fallbackParts(time: string = DEFAULT_TIME): CronParts {
  * to a weekly schedule with every day selected, which is the same expression.
  */
 export function parseCron(cron: string): CronParts {
+  return interpretCron(cron).parts;
+}
+
+/**
+ * A parse, plus whether the expression was one the pickers can actually say.
+ *
+ * The distinction matters to anything comparing two expressions: every
+ * unrepresentable cron parses to the *same* fallback, so treating those parses
+ * as canonical would make two genuinely different schedules look identical.
+ */
+type CronReading = { parts: CronParts; representable: boolean };
+
+function unrepresentable(time?: string): CronReading {
+  return { parts: fallbackParts(time), representable: false };
+}
+
+function interpretCron(cron: string): CronReading {
   const fields = cron.trim().split(/\s+/);
   // Six fields (`sec min hour dom mon dow`), or seven with a trailing year.
-  if (fields.length !== 6 && fields.length !== 7) return fallbackParts();
+  if (fields.length !== 6 && fields.length !== 7) return unrepresentable();
 
-  const [, minute, hour, dayOfMonth, month, dayOfWeek] = fields;
+  const [, minute, hour, dayOfMonth, month, dayOfWeek, year] = fields;
   const time = toTimeValue(hour, minute);
 
-  if (month !== '*') return fallbackParts(time);
+  // A year constraint is a real part of the schedule and the picker has no way
+  // to show it, so an expression carrying one is not ours to rewrite.
+  if (year !== undefined && year !== '*') return unrepresentable(time);
+  if (month !== '*') return unrepresentable(time);
 
   if (dayOfMonth === '*') {
     if (dayOfWeek === '*') {
       return {
-        frequency: 'day',
-        time,
-        daysOfWeek: [...DOW_VALUES],
-        dayOfMonth: '1',
+        parts: {
+          frequency: 'day',
+          time,
+          daysOfWeek: [...DOW_VALUES],
+          dayOfMonth: '1',
+        },
+        representable: true,
       };
     }
     const days = expandDowExpression(dayOfWeek);
     if (days.length > 0) {
-      return { frequency: 'week', time, daysOfWeek: days, dayOfMonth: '1' };
+      return {
+        parts: { frequency: 'week', time, daysOfWeek: days, dayOfMonth: '1' },
+        representable: true,
+      };
     }
-    return fallbackParts(time);
+    return unrepresentable(time);
   }
 
   // Monthly: a specific day-of-month with no day-of-week constraint.
   if (dayOfWeek === '*' && /^(?:[1-9]|[12]\d|3[01])$/.test(dayOfMonth)) {
     return {
-      frequency: 'month',
-      time,
-      daysOfWeek: [...DEFAULT_WEEKDAYS],
-      dayOfMonth,
+      parts: {
+        frequency: 'month',
+        time,
+        daysOfWeek: [...DEFAULT_WEEKDAYS],
+        dayOfMonth,
+      },
+      representable: true,
     };
   }
 
-  return fallbackParts(time);
+  return unrepresentable(time);
 }
 
 /**
@@ -294,12 +336,22 @@ export function withoutDailyFrequency(parts: CronParts): CronParts {
  * for it, which is the same answer {@link parseCron} already gives.
  */
 export function normalizeCron(cron: string): string {
-  const parts = parseCron(cron);
-  const collapsed: CronParts =
-    parts.frequency === 'week' && parts.daysOfWeek.length === DOW_VALUES.length
-      ? { ...parts, frequency: 'day' }
-      : parts;
-  return buildCron(collapsed);
+  const { parts, representable } = interpretCron(cron);
+
+  // Anything the pickers cannot express is returned untouched. Every such
+  // expression parses to the same fallback, so normalizing them would make two
+  // different schedules compare equal — and a comparison that says "unchanged"
+  // about a real change silently discards the edit.
+  if (!representable) return cron;
+
+  const isEveryDay =
+    parts.frequency === 'week' &&
+    parts.daysOfWeek.length === DOW_VALUES.length &&
+    // Membership, not just count, so a duplicated day cannot pass for a full
+    // week and collapse a partial schedule into a daily one.
+    DOW_VALUES.every((day) => parts.daysOfWeek.includes(day));
+
+  return buildCron(isEveryDay ? { ...parts, frequency: 'day' } : parts);
 }
 
 /** Build the six-field expression the backend expects. */

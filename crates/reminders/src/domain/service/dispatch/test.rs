@@ -8,7 +8,7 @@ use model_entity::EntityType;
 use uuid::Uuid;
 
 use super::*;
-use crate::domain::models::{Reminder, ReminderCron, ReminderSchedule};
+use crate::domain::models::{Advance, Reminder, ReminderCron, ReminderSchedule};
 use crate::domain::ports::RawDispatchMessage;
 
 const OWNER: &str = "macro|reminders-owner@macro.com";
@@ -127,14 +127,14 @@ struct FakeRepoState {
     list_fails: bool,
     claimed: Vec<Uuid>,
     released: Vec<Uuid>,
-    /// Completed firings, each with the next firing it advanced the series to.
-    completed: Vec<(Uuid, Option<DateTime<Utc>>)>,
+    /// Completed firings, each with how it moved the series on.
+    completed: Vec<(Uuid, Option<Advance>)>,
     /// Retractions, each with the firing they were bounded by.
     retracted: Vec<(Uuid, DateTime<Utc>)>,
     retract_fails: bool,
-    /// Report every advance as declined, standing in for the owner having
-    /// rescheduled the reminder while the delivery was in flight.
-    advance_superseded: bool,
+    /// Report every advance as declined, standing in for the reminder having
+    /// moved off this firing while the delivery was in flight.
+    advance_declined: bool,
 }
 
 #[derive(Clone, Default)]
@@ -184,7 +184,25 @@ impl FakeRepo {
     /// Where each completed firing moved its series to, `None` for one that
     /// does not repeat.
     fn advanced(&self) -> Vec<(Uuid, Option<DateTime<Utc>>)> {
-        self.0.lock().unwrap().completed.clone()
+        self.0
+            .lock()
+            .unwrap()
+            .completed
+            .iter()
+            .map(|(id, advance)| (*id, advance.map(|a| a.next_run_at)))
+            .collect()
+    }
+
+    /// Whether each completed firing cleared the owner's "done", which only a
+    /// delivery they were told about should.
+    fn cleared_completion(&self) -> Vec<bool> {
+        self.0
+            .lock()
+            .unwrap()
+            .completed
+            .iter()
+            .filter_map(|(_, advance)| advance.map(|a| a.clear_completion))
+            .collect()
     }
 
     fn retracted(&self) -> Vec<(Uuid, DateTime<Utc>)> {
@@ -196,8 +214,8 @@ impl FakeRepo {
         self
     }
 
-    fn superseding_advance(self) -> Self {
-        self.0.lock().unwrap().advance_superseded = true;
+    fn declining_advance(self) -> Self {
+        self.0.lock().unwrap().advance_declined = true;
         self
     }
 }
@@ -263,13 +281,13 @@ impl ReminderDispatchRepo for FakeRepo {
         &self,
         reminder_id: Uuid,
         _scheduled_for: DateTime<Utc>,
-        advance_to: Option<DateTime<Utc>>,
+        advance: Option<Advance>,
     ) -> Result<Completion, Self::Err> {
         let mut state = self.0.lock().unwrap();
-        state.completed.push((reminder_id, advance_to));
-        Ok(match (advance_to, state.advance_superseded) {
+        state.completed.push((reminder_id, advance));
+        Ok(match (advance, state.advance_declined) {
             (None, _) => Completion::NoAdvance,
-            (Some(_), true) => Completion::Superseded,
+            (Some(_), true) => Completion::NotAdvanced,
             (Some(_), false) => Completion::Advanced,
         })
     }
@@ -481,6 +499,41 @@ async fn delivers_a_recurring_reminder_and_advances_it_to_the_next_firing() {
 }
 
 #[tokio::test]
+async fn delivering_a_recurring_firing_clears_an_earlier_done() {
+    // Completion settles one firing, not the series. A firing the owner can now
+    // see supersedes their "done" on the previous one, so the reminder reads as
+    // outstanding again rather than sitting under Done with a fresh nudge in
+    // the inbox.
+    let repo = FakeRepo::with_due(vec![due_recurring(1)]);
+
+    service(repo.clone(), FakeNotifier::default(), FakeQueue::default())
+        .deliver(firing(1))
+        .await
+        .expect("delivery succeeds");
+
+    assert_eq!(repo.cleared_completion(), vec![true]);
+}
+
+#[tokio::test]
+async fn rolling_a_firing_forward_silently_leaves_done_alone() {
+    // Nothing reached the owner, so nothing supersedes what they already dealt
+    // with — returning the reminder to their attention here would be a state
+    // change with no notification to explain it.
+    let stale_at = now() - Duration::days(2);
+    let repo = FakeRepo::with_due(vec![due_recurring_at(1, stale_at)]);
+
+    service(repo.clone(), FakeNotifier::default(), FakeQueue::default())
+        .deliver(DueFiring {
+            reminder_id: uuid(1),
+            scheduled_for: stale_at,
+        })
+        .await
+        .expect("delivery succeeds");
+
+    assert_eq!(repo.cleared_completion(), vec![false]);
+}
+
+#[tokio::test]
 async fn a_recurring_delivery_retracts_the_earlier_firings_notification() {
     let repo = FakeRepo::with_due(vec![due_recurring(1)]);
     let notifier = FakeNotifier::default();
@@ -534,11 +587,11 @@ async fn a_failed_retraction_does_not_fail_a_delivered_firing() {
 }
 
 #[tokio::test]
-async fn a_delivery_whose_advance_was_superseded_still_counts_as_delivered() {
+async fn a_delivery_whose_advance_was_declined_still_counts_as_delivered() {
     // The owner rescheduled while this was in flight, so the advance was
     // declined and their time stands. The notification still went out, so the
     // message is done with — leaving it for redelivery would notify twice.
-    let repo = FakeRepo::with_due(vec![due_recurring(1)]).superseding_advance();
+    let repo = FakeRepo::with_due(vec![due_recurring(1)]).declining_advance();
     let notifier = FakeNotifier::default();
 
     let outcome = service(repo.clone(), notifier.clone(), FakeQueue::default())
@@ -635,6 +688,55 @@ async fn a_recurring_firing_the_next_one_has_overtaken_is_rolled_forward() {
 
     assert_eq!(outcome, DeliveryOutcome::RolledForward);
     assert!(notifier.notified().is_empty());
+}
+
+#[tokio::test]
+async fn a_firing_is_stale_the_instant_its_successor_comes_due() {
+    // The boundary is `>=`, deliberately: at the exact moment the next firing
+    // is due, the previous one has been superseded and delivering it would put
+    // two of the same reminder in front of the owner at once. Pinned because it
+    // decides real notifications, and `>` versus `>=` here is invisible.
+    let hourly = "0 0 * * * *";
+    // `now` is 12:00 exactly, so this firing's successor falls precisely on it.
+    let previous = now() - Duration::hours(1);
+    let repo = FakeRepo::with_due(vec![due_with_cron(1, hourly, previous)]);
+    let notifier = FakeNotifier::default();
+
+    let outcome = service(repo.clone(), notifier.clone(), FakeQueue::default())
+        .deliver(DueFiring {
+            reminder_id: uuid(1),
+            scheduled_for: previous,
+        })
+        .await
+        .expect("delivery succeeds");
+
+    assert_eq!(outcome, DeliveryOutcome::RolledForward);
+    assert!(notifier.notified().is_empty());
+}
+
+#[tokio::test]
+async fn a_firing_whose_successor_is_still_ahead_is_delivered() {
+    // The other side of that boundary, so the assertion above is pinning a
+    // line rather than a direction.
+    //
+    // On the half hour, so `now` falls between two firings rather than on one:
+    // with an on-the-hour cron every past firing's successor has already landed
+    // at 12:00, and there is no "not yet superseded" case to express.
+    let hourly = "0 30 * * * *";
+    let previous = now() - Duration::minutes(30);
+    let repo = FakeRepo::with_due(vec![due_with_cron(1, hourly, previous)]);
+    let notifier = FakeNotifier::default();
+
+    let outcome = service(repo.clone(), notifier.clone(), FakeQueue::default())
+        .deliver(DueFiring {
+            reminder_id: uuid(1),
+            scheduled_for: previous,
+        })
+        .await
+        .expect("delivery succeeds");
+
+    assert_eq!(outcome, DeliveryOutcome::Delivered);
+    assert_eq!(notifier.notified(), vec![uuid(1)]);
 }
 
 #[tokio::test]

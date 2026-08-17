@@ -607,6 +607,25 @@ pub struct SweepSummary {
     pub dispatched: usize,
 }
 
+/// Where a series goes once the firing in hand is finished.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Advance {
+    /// The firing to move to.
+    pub next_run_at: DateTime<Utc>,
+    /// Whether to clear the owner's "done" acknowledgement.
+    ///
+    /// True when this delivery notified them: marking a recurring reminder done
+    /// settles the firing in front of you, not the standing arrangement, so a
+    /// fresh notification makes that acknowledgement stale and the reminder
+    /// outstanding again.
+    ///
+    /// False when the firing was rolled forward without notifying. Nothing
+    /// reached the owner, so nothing has superseded what they already dealt
+    /// with, and clearing it would return the reminder to their attention with
+    /// no notification to explain why.
+    pub clear_completion: bool,
+}
+
 /// What finishing a firing did to the reminder behind it.
 ///
 /// Reported rather than assumed because the advance is allowed to not happen,
@@ -618,10 +637,15 @@ pub enum Completion {
     NoAdvance,
     /// The series moved on to the firing it was given.
     Advanced,
-    /// The advance was declined because the reminder no longer sits on the
-    /// firing that was delivered — the owner rescheduled it mid-flight, and
-    /// their time outranks the series. Expected, not an error.
-    Superseded,
+    /// An advance was asked for and declined, because the reminder no longer
+    /// sits on the firing that was delivered.
+    ///
+    /// Named for what is known rather than for the likely cause. A reschedule
+    /// mid-flight is the ordinary one and outranks the series, but the row may
+    /// equally have been deleted, completed, or disabled between the read that
+    /// resolved this firing and the write that finished it. All this reports is
+    /// that the guard held. Expected, not an error.
+    NotAdvanced,
 }
 
 /// What became of one `Deliver` message.

@@ -7,7 +7,7 @@ use sqlx::PgPool;
 
 use super::*;
 use crate::domain::models::{
-    ReminderCursor, ScheduleUpdate, SoupOrder, SoupReminderQuery, entity_token,
+    Advance, ReminderCursor, ScheduleUpdate, SoupOrder, SoupReminderQuery, entity_token,
 };
 
 const USER_A: &str = "macro|reminders-a@macro.com";
@@ -1156,6 +1156,159 @@ async fn due_firings_span_users(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_completed_recurring_reminder_is_still_due(pool: PgPool) {
+    // Marking a recurring reminder done settles the firing in front of you, not
+    // the standing arrangement. Ending the series is what deleting is for, so
+    // completion must not quietly retire it.
+    insert_user(&pool, USER_A).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+    let reminder = repo
+        .create_reminder(&user(USER_A), &new_reminder("standup", recurring()))
+        .await
+        .expect("insert");
+
+    repo.update_reminder(
+        &user(USER_A),
+        reminder.id,
+        &ReminderUpdate {
+            completed: Some(true),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("complete succeeds");
+
+    let due = repo
+        .due_firings(at(2026, 8, 1, 12))
+        .await
+        .expect("query succeeds");
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].reminder_id, reminder.id);
+
+    // And it still resolves at delivery, or the sweep would fan out a firing
+    // that then evaporates.
+    let resolved = repo.find_due_reminder(due[0]).await.expect("read succeeds");
+    assert!(resolved.is_some());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_disabled_recurring_reminder_is_not_due(pool: PgPool) {
+    // The distinction completion no longer carries. `enabled` is the pause
+    // switch; without it there would be no way to stop a series short of
+    // deleting it.
+    insert_user(&pool, USER_A).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+    let reminder = repo
+        .create_reminder(&user(USER_A), &new_reminder("standup", recurring()))
+        .await
+        .expect("insert");
+
+    repo.update_reminder(
+        &user(USER_A),
+        reminder.id,
+        &ReminderUpdate {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("disable succeeds");
+
+    let due = repo
+        .due_firings(at(2026, 8, 1, 12))
+        .await
+        .expect("query succeeds");
+    assert!(due.is_empty());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn delivering_a_recurring_firing_clears_an_earlier_done(pool: PgPool) {
+    // The owner ticked off the last nudge; this one has just landed in their
+    // inbox, so the reminder is outstanding again and must not read as Done.
+    insert_user(&pool, USER_A).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+    let reminder = repo
+        .create_reminder(&user(USER_A), &new_reminder("standup", recurring()))
+        .await
+        .expect("insert");
+    repo.update_reminder(
+        &user(USER_A),
+        reminder.id,
+        &ReminderUpdate {
+            completed: Some(true),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("complete succeeds");
+
+    repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("claim succeeds");
+    repo.complete_occurrence_and_advance(
+        reminder.id,
+        reminder.next_run_at,
+        Some(Advance {
+            next_run_at: at(2026, 9, 9, 13),
+            clear_completion: true,
+        }),
+    )
+    .await
+    .expect("complete succeeds");
+
+    let stored = repo
+        .get_reminder(&user(USER_A), reminder.id)
+        .await
+        .expect("read succeeds")
+        .expect("still exists");
+    assert!(stored.completed_at.is_none());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn rolling_a_firing_forward_silently_leaves_done_alone(pool: PgPool) {
+    // Nothing reached the owner, so nothing supersedes what they already dealt
+    // with. Clearing here would return the reminder to their attention with no
+    // notification to explain why.
+    insert_user(&pool, USER_A).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+    let reminder = repo
+        .create_reminder(&user(USER_A), &new_reminder("standup", recurring()))
+        .await
+        .expect("insert");
+    repo.update_reminder(
+        &user(USER_A),
+        reminder.id,
+        &ReminderUpdate {
+            completed: Some(true),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("complete succeeds");
+
+    repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("claim succeeds");
+    repo.complete_occurrence_and_advance(
+        reminder.id,
+        reminder.next_run_at,
+        Some(Advance {
+            next_run_at: at(2026, 9, 9, 13),
+            clear_completion: false,
+        }),
+    )
+    .await
+    .expect("complete succeeds");
+
+    let stored = repo
+        .get_reminder(&user(USER_A), reminder.id)
+        .await
+        .expect("read succeeds")
+        .expect("still exists");
+    assert!(stored.completed_at.is_some());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn due_firings_skip_disabled_and_completed(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     let now = at(2026, 8, 1, 12);
@@ -1483,7 +1636,14 @@ async fn completing_a_recurring_firing_advances_it_to_the_next_one(pool: PgPool)
         .await
         .expect("claim succeeds");
     let completion = repo
-        .complete_occurrence_and_advance(reminder.id, reminder.next_run_at, Some(next))
+        .complete_occurrence_and_advance(
+            reminder.id,
+            reminder.next_run_at,
+            Some(Advance {
+                next_run_at: next,
+                clear_completion: true,
+            }),
+        )
         .await
         .expect("complete succeeds");
 
@@ -1559,14 +1719,17 @@ async fn completing_does_not_advance_a_reminder_the_owner_rescheduled(pool: PgPo
         .complete_occurrence_and_advance(
             reminder.id,
             reminder.next_run_at,
-            Some(at(2026, 9, 9, 13)),
+            Some(Advance {
+                next_run_at: at(2026, 9, 9, 13),
+                clear_completion: true,
+            }),
         )
         .await
         .expect("complete succeeds");
 
     // Reported, not silent. This and "the advance failed" leave the same row
     // behind, so the caller has no other way to tell them apart.
-    assert_eq!(completion, Completion::Superseded);
+    assert_eq!(completion, Completion::NotAdvanced);
 
     let stored = repo
         .get_reminder(&user(USER_A), reminder.id)
@@ -1593,7 +1756,7 @@ async fn completing_a_one_shot_reports_that_there_was_nothing_to_advance(pool: P
         .await
         .expect("complete succeeds");
 
-    // Distinct from `Superseded`: nothing was asked for, so nothing was
+    // Distinct from `NotAdvanced`: nothing was asked for, so nothing was
     // declined.
     assert_eq!(completion, Completion::NoAdvance);
 }
@@ -1680,6 +1843,46 @@ async fn retracting_keeps_the_current_firing_and_anything_newer(pool: PgPool) {
             Some(at(2026, 8, 3, 13).to_rfc3339()),
         ],
         "only firings before the one delivered should be retracted"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn retracting_survives_an_unreadable_firing_stamp(pool: PgPool) {
+    // A malformed `scheduledFor` must not fail the statement. Postgres may
+    // evaluate the OR arms in any order, so without a guard on the cast one bad
+    // row anywhere would break retraction for every reminder — and because a
+    // failed retraction is logged and swallowed, it would look like tidying
+    // that simply never happened.
+    insert_user(&pool, USER_A).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+    let reminder = repo
+        .create_reminder(&user(USER_A), &new_reminder("standup", recurring()))
+        .await
+        .expect("insert");
+
+    let current = at(2026, 8, 2, 13);
+    sqlx::query(
+        r#"
+        INSERT INTO notification
+            (id, notification_event_type, event_item_id, event_item_type, service_sender, metadata)
+        VALUES ($1, 'reminder', $2, 'reminder', 'reminders', '{"scheduledFor": "not a timestamp"}')
+        "#,
+    )
+    .bind(macro_uuid::generate_uuid_v7())
+    .bind(reminder.id.to_string())
+    .execute(&pool)
+    .await
+    .expect("notification should insert");
+    insert_reminder_notification(&pool, reminder.id, Some(current)).await;
+
+    repo.retract_notifications(reminder.id, current)
+        .await
+        .expect("retract must not fail on an unreadable stamp");
+
+    // The unreadable one is treated as stale, which is what it is.
+    assert_eq!(
+        notification_firings(&pool, reminder.id).await,
+        vec![Some(current.to_rfc3339())]
     );
 }
 

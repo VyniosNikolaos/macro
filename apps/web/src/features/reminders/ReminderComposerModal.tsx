@@ -207,13 +207,7 @@ export function ReminderComposerModal() {
       if (current === 'description') {
         keybindings(descriptionStepKeybindings(advanceFromDescription));
       } else if (current === 'repeat') {
-        keybindings(
-          listlessStepKeybindings(() => {
-            // Enter must respect the same gate the button does, or the one
-            // path that skips validation is the fast one everybody uses.
-            if (isValidCronParts(repeatParts())) void submitRepeat();
-          })
-        );
+        keybindings(listlessStepKeybindings(() => void submitRepeat()));
       }
     })
   );
@@ -301,11 +295,22 @@ export function ReminderComposerModal() {
     await submitSchedule(onceSchedule(date));
   };
 
-  /** Send the recurrence built on the repeat step. */
+  /**
+   * Send the recurrence built on the repeat step.
+   *
+   * The validity gate lives here rather than at each control that can trigger a
+   * submit. It was in two places — the button's `disabled` and the Enter
+   * handler — and a gate written twice is one that eventually only holds in one
+   * of them. Every path in goes through this, so there is no path that skips
+   * it; the button's `disabled` is now an affordance rather than the check.
+   *
+   * No past-date check: a recurrence has no single instant to have passed, and
+   * the backend derives its first firing from the cron itself.
+   */
   const submitRepeat = async () => {
-    // No past-date check: a recurrence has no single instant to have passed, and
-    // the backend derives its first firing from the cron itself.
-    await submitSchedule(recurringSchedule(repeatParts()));
+    const parts = repeatParts();
+    if (!isValidCronParts(parts)) return;
+    await submitSchedule(recurringSchedule(parts));
   };
 
   /**
@@ -619,10 +624,22 @@ function WhenList(props: {
     ];
   });
 
+  // The date the selection last rested on, which is what a recurrence started
+  // from here should inherit. Arrowing down to "In 2 hours" and carrying on to
+  // "Repeat…" means that time, not whichever date happens to head the list.
+  const [seedDate, setSeedDate] = createSignal<Date | undefined>();
+  createEffect(() => {
+    const row = rows()[props.selectedIndex()];
+    if (row?.kind === 'date') setSeedDate(row.option.date);
+  });
+
   const activate = (row: WhenRow) => {
-    // Seeded from the first date offered, so "tomorrow 3pm" then Repeat gives a
-    // recurrence at 3pm rather than dropping back to a default morning.
-    if (row.kind === 'repeat') return props.onRepeat(dateOptions()[0]?.date);
+    // Falls back to the leading option, which is what a typed query resolves
+    // to — so "tomorrow 3pm" then Repeat still gives a 3pm recurrence even
+    // without having moved the selection onto it.
+    if (row.kind === 'repeat') {
+      return props.onRepeat(seedDate() ?? dateOptions()[0]?.date);
+    }
     if (row.kind === 'keep') return props.onKeep(row.schedule);
     props.onSubmit(row.option.date);
   };

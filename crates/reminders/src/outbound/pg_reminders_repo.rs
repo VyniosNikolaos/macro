@@ -14,7 +14,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::domain::models::{
-    Completion, DueFiring, DueReminder, InvalidCron, NewReminder, Reminder, ReminderBatch,
+    Advance, Completion, DueFiring, DueReminder, InvalidCron, NewReminder, Reminder, ReminderBatch,
     ReminderCron, ReminderCursor, ReminderFilter, ReminderForSoup, ReminderReference,
     ReminderSchedule, ReminderUpdate, SoupOrder, SoupReminderQuery,
 };
@@ -677,7 +677,11 @@ impl ReminderDispatchRepo for PgRemindersRepo {
             SELECT r.id, r.next_run_at
             FROM reminder r
             WHERE r.enabled
-              AND r.completed_at IS NULL
+              -- Completion is per-firing, so it only retires a one-shot. A
+              -- recurring reminder its owner has ticked off keeps coming due:
+              -- they dealt with the last nudge, not with the standing
+              -- arrangement, and ending that is what deleting is for.
+              AND (r.cron IS NOT NULL OR r.completed_at IS NULL)
               AND r.next_run_at <= $1
               AND NOT EXISTS (
                   SELECT 1
@@ -730,7 +734,9 @@ impl ReminderDispatchRepo for PgRemindersRepo {
             WHERE id = $1
               AND next_run_at = $2
               AND enabled
-              AND completed_at IS NULL
+              -- Matches `due_firings`: a completed recurring reminder is still
+              -- deliverable, a completed one-shot is finished.
+              AND (cron IS NOT NULL OR completed_at IS NULL)
             "#,
             firing.reminder_id,
             firing.scheduled_for,
@@ -807,7 +813,7 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         &self,
         reminder_id: Uuid,
         scheduled_for: DateTime<Utc>,
-        advance_to: Option<DateTime<Utc>>,
+        advance: Option<Advance>,
     ) -> Result<Completion, Self::Err> {
         // One transaction, because the two writes are only correct together.
         // Marking the occurrence sent is what stops this firing going out
@@ -833,7 +839,7 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         .execute(tx.as_mut())
         .await?;
 
-        let Some(advance_to) = advance_to else {
+        let Some(advance) = advance else {
             tx.commit().await?;
             return Ok(Completion::NoAdvance);
         };
@@ -848,12 +854,18 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         let advanced = sqlx::query!(
             r#"
             UPDATE reminder
-            SET next_run_at = $2, updated_at = now()
+            SET next_run_at = $2,
+                -- Cleared only when the owner was notified. A firing they can
+                -- see supersedes their "done" on the previous one; a firing
+                -- rolled forward in silence supersedes nothing.
+                completed_at = CASE WHEN $4::bool THEN NULL ELSE completed_at END,
+                updated_at = now()
             WHERE id = $1 AND next_run_at = $3
             "#,
             reminder_id,
-            advance_to,
+            advance.next_run_at,
             scheduled_for,
+            advance.clear_completion,
         )
         .execute(tx.as_mut())
         .await?
@@ -864,7 +876,7 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         Ok(if advanced > 0 {
             Completion::Advanced
         } else {
-            Completion::Superseded
+            Completion::NotAdvanced
         })
     }
 
@@ -884,6 +896,13 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         // delivery of a later firing created — survive. `scheduledFor` is the
         // firing each notification was written for; rows without it predate
         // recurring dispatch and are older than anything being delivered now.
+        //
+        // `pg_input_is_valid` guards the cast rather than trusting the column.
+        // Postgres is free to evaluate the arms of an OR in any order, so a
+        // single unparseable value anywhere in the table would otherwise fail
+        // the whole statement — and since a failed retraction is swallowed,
+        // that would show up as tidying that quietly never happened. An
+        // unreadable stamp is treated as stale, which is what it is.
         sqlx::query!(
             r#"
             DELETE FROM notification
@@ -891,6 +910,7 @@ impl ReminderDispatchRepo for PgRemindersRepo {
               AND event_item_id = $1
               AND (
                   metadata->>'scheduledFor' IS NULL
+                  OR NOT pg_input_is_valid(metadata->>'scheduledFor', 'timestamptz')
                   OR (metadata->>'scheduledFor')::timestamptz < $2
               )
             "#,

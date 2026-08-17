@@ -18,7 +18,7 @@ use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::domain::models::{
-    Completion, DeliveryOutcome, DueFiring, DueReminder, MAX_RECURRING_LATENESS,
+    Advance, Completion, DeliveryOutcome, DueFiring, DueReminder, MAX_RECURRING_LATENESS,
     ReminderDispatchMessage, ReminderError, ReminderSchedule, SweepSummary,
 };
 use crate::domain::ports::{
@@ -126,17 +126,23 @@ where
     /// Claiming first is what stops two workers double-sending; completing last
     /// is what makes a failed delivery retryable rather than lost.
     ///
-    /// `advance_to` carries a recurring reminder's next firing through to
+    /// `next_run_at` carries a recurring reminder's next firing through to
     /// completion, where it lands in the same write that marks this one sent.
     async fn deliver_claimed(
         &self,
         due: &DueReminder,
         now: DateTime<Utc>,
-        advance_to: Option<DateTime<Utc>>,
+        next_run_at: Option<DateTime<Utc>>,
         delivery: Delivery,
     ) -> Result<DeliveryOutcome, ReminderError> {
         let reminder_id = due.reminder.id;
         let scheduled_for = due.scheduled_for;
+        // Only a delivery the owner can see supersedes their "done" on the
+        // previous firing.
+        let advance = next_run_at.map(|next_run_at| Advance {
+            next_run_at,
+            clear_completion: matches!(delivery, Delivery::Notify),
+        });
 
         let claimed = self
             .repo
@@ -152,8 +158,7 @@ where
             // completing is the whole job. The previous firing's notification
             // stays — nothing replaced it, so it is still the most recent thing
             // the owner was told.
-            self.complete(reminder_id, scheduled_for, advance_to)
-                .await?;
+            self.complete(reminder_id, scheduled_for, advance).await?;
 
             return Ok(DeliveryOutcome::RolledForward);
         }
@@ -208,8 +213,7 @@ where
             );
         }
 
-        self.complete(reminder_id, scheduled_for, advance_to)
-            .await?;
+        self.complete(reminder_id, scheduled_for, advance).await?;
 
         Ok(DeliveryOutcome::Delivered)
     }
@@ -217,26 +221,26 @@ where
     /// Finish a firing, reporting an advance that was declined rather than
     /// letting it pass unnoticed.
     ///
-    /// A superseded advance is expected — the owner rescheduled mid-flight —
-    /// but it is indistinguishable after the fact from an advance that should
-    /// have happened and did not, so it is worth a line in the log either way.
+    /// A declined advance is expected — most often the owner rescheduled
+    /// mid-flight — but it is indistinguishable after the fact from an advance
+    /// that should have happened and did not, so it is worth a line either way.
     async fn complete(
         &self,
         reminder_id: Uuid,
         scheduled_for: DateTime<Utc>,
-        advance_to: Option<DateTime<Utc>>,
+        advance: Option<Advance>,
     ) -> Result<Completion, ReminderError> {
         let completion = self
             .repo
-            .complete_occurrence_and_advance(reminder_id, scheduled_for, advance_to)
+            .complete_occurrence_and_advance(reminder_id, scheduled_for, advance)
             .await
             .map_err(|e| rootcause::Report::new(e).into_dynamic())?;
 
-        if completion == Completion::Superseded {
+        if completion == Completion::NotAdvanced {
             tracing::info!(
                 reminder_id = %reminder_id,
                 scheduled_for = %scheduled_for,
-                "did not advance a reminder that was rescheduled mid-delivery",
+                "did not advance a reminder that moved off this firing mid-delivery",
             );
         }
 
@@ -314,7 +318,7 @@ where
         // expression that has run out. That reminder then behaves exactly like
         // a delivered one-shot: it stays at its final firing and waits to be
         // dealt with, rather than needing a state of its own.
-        let advance_to = match &due.reminder.schedule {
+        let next_run_at = match &due.reminder.schedule {
             ReminderSchedule::Once { .. } => None,
             ReminderSchedule::Recurring { cron, timezone } => cron.next_run_after(now, *timezone),
         };
@@ -330,6 +334,6 @@ where
             Delivery::Notify
         };
 
-        self.deliver_claimed(&due, now, advance_to, delivery).await
+        self.deliver_claimed(&due, now, next_run_at, delivery).await
     }
 }
