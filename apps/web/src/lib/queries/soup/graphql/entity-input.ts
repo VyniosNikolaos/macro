@@ -4,6 +4,7 @@ import {
   type Query,
   queryStateFrom,
 } from '@app/features/next-soup/filters/filter-store';
+import { match } from 'ts-pattern';
 import type { SoupEntityTag } from '../normalized-cache/types';
 import { makeGraphqlSoupInput } from './ast';
 
@@ -17,50 +18,50 @@ export type GraphqlSoupEntityRef = {
 export function makeGraphqlEntitySoupInput(entities: GraphqlSoupEntityRef[]) {
   const include: NonNullable<Query['include']> = {};
   for (const entity of entities) {
-    switch (entity.type) {
-      case 'calendarEvent':
+    match(entity.type)
+      .with('calendarEvent', () => {
         include.calendarEventId = [
           ...(include.calendarEventId ?? []),
           entity.id,
         ];
-        break;
-      case 'document':
+      })
+      .with('document', () => {
         include.documentId = [...(include.documentId ?? []), entity.id];
-        break;
-      case 'project':
+      })
+      .with('project', () => {
         include.folderIdSelf = [...(include.folderIdSelf ?? []), entity.id];
-        break;
-      case 'chat':
+      })
+      .with('chat', () => {
         include.chatId = [...(include.chatId ?? []), entity.id];
-        break;
-      case 'emailThread':
+      })
+      .with('emailThread', () => {
         include.threadId = [...(include.threadId ?? []), entity.id];
-        break;
-      case 'channel':
+      })
+      .with('channel', () => {
         include.channelId = [...(include.channelId ?? []), entity.id];
-        break;
-      case 'channelThread':
+      })
+      .with('channelThread', () => {
         include.channelThreadId = [
           ...(include.channelThreadId ?? []),
           entity.id,
         ];
-        break;
-      case 'call':
+      })
+      .with('call', () => {
         include.callId = [...(include.callId ?? []), entity.id];
-        break;
-      case 'crmCompany':
+      })
+      .with('crmCompany', () => {
         include.crmCompanyId = [...(include.crmCompanyId ?? []), entity.id];
-        break;
-      case 'foreignEntity':
+      })
+      .with('foreignEntity', () => {
         include.foreignEntityRecordId = [
           ...(include.foreignEntityRecordId ?? []),
           entity.id,
         ];
-        break;
-      case 'reminder':
+      })
+      .with('reminder', () => {
         include.reminderId = [...(include.reminderId ?? []), entity.id];
-        break;
-    }
+      })
+      .exhaustive();
   }
 
   const query = defineQueryFilters({ include });
