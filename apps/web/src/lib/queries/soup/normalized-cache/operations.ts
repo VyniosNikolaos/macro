@@ -511,7 +511,11 @@ export async function refetchSoupEntity(
   options?: { includeRoot?: boolean }
 ): Promise<void> {
   let page: SoupPage;
-  if (ENABLE_GRAPHQL_SOUP() && entityType !== 'calendarEvent') {
+  if (
+    ENABLE_GRAPHQL_SOUP() &&
+    entityType !== 'calendarEvent' &&
+    options?.includeRoot !== true
+  ) {
     try {
       const { fetchGraphqlSoup } = await import(
         '@service-storage/graphql-soup'

@@ -251,6 +251,27 @@ describe('refetchSoupEntity transport', () => {
     expect(fetchGraphqlSoupMock).not.toHaveBeenCalled();
   });
 
+  it('retains includeRoot project refetches on REST when GraphQL Soup is enabled', async () => {
+    vi.spyOn(featureFlags, 'ENABLE_GRAPHQL_SOUP').mockReturnValue(true);
+    getSoupItemsMock.mockResolvedValue({
+      isErr: () => false,
+      value: { items: [] },
+    });
+
+    await refetchSoupEntity('project-1', 'project', { includeRoot: true });
+
+    expect(getSoupItemsMock).toHaveBeenCalledWith({
+      params: {},
+      body: expect.objectContaining({
+        project_filters: {
+          project_ids: ['project-1'],
+          include_root: true,
+        },
+      }),
+    });
+    expect(fetchGraphqlSoupMock).not.toHaveBeenCalled();
+  });
+
   it('retains the REST refetch when GraphQL Soup is disabled', async () => {
     vi.spyOn(featureFlags, 'ENABLE_GRAPHQL_SOUP').mockReturnValue(false);
     getSoupItemsMock.mockResolvedValue({
