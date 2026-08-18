@@ -3229,11 +3229,12 @@ export const SetEntityProperty = z.object({
       z.object({
         entityId: z.string(),
         entityType: z.enum([
+          'calendar_event',
           'document',
           'task',
           'project',
           'chat',
-          'thread',
+          'email',
           'channel',
           'call',
           'user',
@@ -3249,11 +3250,12 @@ export const SetEntityProperty = z.object({
         z.object({
           entityId: z.string(),
           entityType: z.enum([
+            'calendar_event',
             'document',
             'task',
             'project',
             'chat',
-            'thread',
+            'email',
             'channel',
             'call',
             'user',

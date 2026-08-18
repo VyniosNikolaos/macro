@@ -517,11 +517,12 @@ export type SendEmailResponse =
       };
     };
 export type ToolEntityType =
+  | 'calendar_event'
   | 'document'
   | 'task'
   | 'project'
   | 'chat'
-  | 'thread'
+  | 'email'
   | 'channel'
   | 'call'
   | 'user'

@@ -20,11 +20,15 @@ use super::PropertiesToolContext;
 #[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolEntityType {
+    CalendarEvent,
     Document,
     Task,
     Project,
     Chat,
-    Thread,
+    // `email` is the model-facing entity token used by listing, search,
+    // notification, and property tools.
+    #[serde(alias = "thread", alias = "email_thread")]
+    Email,
     Channel,
     Call,
     User,
@@ -34,11 +38,12 @@ pub enum ToolEntityType {
 impl From<ToolEntityType> for EntityType {
     fn from(t: ToolEntityType) -> Self {
         match t {
+            ToolEntityType::CalendarEvent => EntityType::CalendarEvent,
             ToolEntityType::Document => EntityType::Document,
             ToolEntityType::Task => EntityType::Task,
             ToolEntityType::Project => EntityType::Project,
             ToolEntityType::Chat => EntityType::Chat,
-            ToolEntityType::Thread => EntityType::Thread,
+            ToolEntityType::Email => EntityType::Thread,
             ToolEntityType::Channel => EntityType::Channel,
             ToolEntityType::Call => EntityType::CallRecord,
             ToolEntityType::User => EntityType::User,
@@ -56,7 +61,7 @@ pub enum ToolPropertyTargetEntityType {
     Chat,
     // `email` matches what ListEntities returns for email threads; the legacy
     // `thread` spelling stays accepted (alias) but is no longer advertised.
-    #[serde(alias = "thread")]
+    #[serde(alias = "thread", alias = "email_thread")]
     Email,
     Channel,
     Call,
@@ -265,8 +270,47 @@ fn to_tool_property(info: EntityPropertyInfo) -> ToolPropertyItem {
 }
 
 fn property_value_to_json(value: &PropertyValue) -> serde_json::Value {
-    // Serialize the PropertyValue directly - it has good serde representation
-    serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
+    match value {
+        // Entity references are stored with the properties-layer type names
+        // (for example `THREAD`). Translate them at the AI-tool boundary so
+        // tool output uses the same model-facing vocabulary accepted by tool
+        // input (`email`).
+        PropertyValue::EntityRef(references) => serde_json::json!({
+            "type": "EntityReference",
+            "value": references
+                .iter()
+                .map(|reference| ToolEntityReferenceValue {
+                    entity_id: &reference.entity_id,
+                    entity_type: tool_entity_type_label(reference.entity_type),
+                    specific_message_id: reference.specific_message_id,
+                })
+                .collect::<Vec<_>>(),
+        }),
+        _ => serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+    }
+}
+
+#[derive(Serialize)]
+struct ToolEntityReferenceValue<'a> {
+    entity_id: &'a str,
+    entity_type: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    specific_message_id: Option<Uuid>,
+}
+
+fn tool_entity_type_label(entity_type: EntityType) -> &'static str {
+    match entity_type {
+        EntityType::CalendarEvent => "calendar_event",
+        EntityType::CallRecord => "call",
+        EntityType::Channel => "channel",
+        EntityType::Chat => "chat",
+        EntityType::Company => "company",
+        EntityType::Document => "document",
+        EntityType::Project => "project",
+        EntityType::Task => "task",
+        EntityType::Thread => "email",
+        EntityType::User => "user",
+    }
 }
 
 fn to_tool_option(opt: PropertyOptionInfo) -> ToolPropertyOption {
