@@ -82,129 +82,6 @@
         "deprecated": true
       }
     },
-    "/agent-sessions/{session_id}": {
-      "get": {
-        "tags": ["agent-sessions"],
-        "summary": "Get an agent session by id.",
-        "operationId": "get_agent_session",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "description": "ID of the agent session",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentSessionResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/agent-sessions/{session_id}/log": {
-      "get": {
-        "tags": ["agent-sessions"],
-        "summary": "The raw protocol log of one agent session.",
-        "description": "Served unfolded, and whole: the fold is a left fold over the frames from\nthe beginning, so a reader that skipped any of them would derive different\nturn numbering.\n\nAn unknown session is an error: the response has to name the session's\nagent, and a session that never existed has none to name.",
-        "operationId": "get_agent_session_log",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "description": "ID of the agent session",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentSessionLogResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/annotations/anchors": {
       "delete": {
         "tags": ["annotations::delete_anchor"],
@@ -754,6 +631,48 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bots/mentionable": {
+      "get": {
+        "tags": ["bots"],
+        "summary": "Handler for `GET /bots/mentionable`.",
+        "operationId": "list_mentionable_bots",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MentionableBot"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
             "description": "",
             "content": {
               "application/json": {
@@ -8754,6 +8673,337 @@
         }
       }
     },
+    "/personas": {
+      "get": {
+        "tags": ["bots"],
+        "summary": "Handler for `GET /personas`.",
+        "operationId": "list_personas",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Persona"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["bots"],
+        "summary": "Handler for `POST /personas`.",
+        "operationId": "create_persona",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/personas/{bot_id}": {
+      "get": {
+        "tags": ["bots"],
+        "summary": "Handler for `GET /personas/{bot_id}`.",
+        "operationId": "get_persona",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "description": "Persona bot id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["bots"],
+        "summary": "Handler for `DELETE /personas/{bot_id}`.",
+        "operationId": "delete_persona",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "description": "Persona bot id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["bots"],
+        "summary": "Handler for `PATCH /personas/{bot_id}`.",
+        "operationId": "patch_persona",
+        "parameters": [
+          {
+            "name": "bot_id",
+            "in": "path",
+            "description": "Persona bot id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPersonaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pins": {
       "get": {
         "tags": ["pins::get_pins"],
@@ -11289,118 +11539,33 @@
           }
         }
       },
-      "AgentSessionLogEntryDto": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/LogFrameDto",
-            "description": "The frame: `direction` and the protocol envelope under `content`.\n\nSerialized by [`Message`] itself rather than rebuilt field by field, so\nthe bytes on the wire are exactly what the fold's own log type reads\nback. [`LogFrameDto`] describes the two fields that produces."
-          },
-          {
-            "type": "object",
-            "required": ["createdAt"],
-            "properties": {
-              "createdAt": {
-                "type": "string",
-                "format": "date-time",
-                "description": "When the log recorded the frame.\n\nThe frame itself carries no time, so this comes from the log row. It is\nwhat a reader has to order these against anything else it is showing\nbeside them - the fold derives an order among the messages of one\nsession and nothing more."
-              },
-              "userId": {
-                "type": ["string", "null"],
-                "description": "The user whose action produced the frame, absent when no user did.\n\nOnly prompts carry one, and only when the frame was attributed at the\ntime - a replayed or recorded session's are anonymous."
-              }
-            }
-          }
-        ],
-        "description": "One entry of a session's protocol log.\n\nSerializes as `{\"userId\": ..., \"direction\": ..., \"content\": ...}` - the\nframe's own two fields, flattened in beside the attribution, which is the\nsame shape a recorded session's JSONL carries. A reader can deserialize the\n`direction`/`content` pair straight back into the fold's own log type\nrather than through a transport vocabulary of its own.\n\n`agentSessionId` is not repeated per entry: every entry in a response\nbelongs to the session named once at the top.\n\n`Deserialize` is for the wire-contract tests only - nothing server-side\ndecodes its own response type."
-      },
-      "AgentSessionLogResponse": {
+      "AgentConfig": {
         "type": "object",
-        "description": "Response body for one session's raw protocol log.\n\nA wrapper rather than a bare array so that anything which is about the\nresponse rather than about a frame has somewhere to go later without\nbreaking every client.",
-        "required": ["bot", "entries"],
+        "description": "What an agent-backed bot runs: the `bot_agent_config` row.",
+        "required": ["harness", "model"],
         "properties": {
-          "bot": {
-            "$ref": "#/components/schemas/SessionBot",
-            "description": "The agent whose messages the log derives.\n\nHere because a client renders those messages and cannot otherwise work\nout who sent them: the sender of an agent message is this session's\nbot, and nothing else names it."
-          },
-          "entries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AgentSessionLogEntryDto"
-            },
-            "description": "Every logged frame, oldest first. Folding depends on this order."
-          }
-        }
-      },
-      "AgentSessionResponse": {
-        "type": "object",
-        "description": "Response body describing an agent session.",
-        "required": [
-          "id",
-          "ownerId",
-          "botId",
-          "model",
-          "harness",
-          "repoUrl",
-          "status",
-          "createdAt",
-          "modifiedAt"
-        ],
-        "properties": {
-          "acpSessionId": {
-            "type": ["string", "null"],
-            "description": "The ACP session id, if one exists."
-          },
-          "botId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The bot running the agent."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the session was created."
-          },
           "harness": {
-            "type": "string",
-            "description": "Harness slug."
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The session id."
+            "$ref": "#/components/schemas/Harness",
+            "description": "Harness the session runs under."
           },
           "model": {
-            "type": "string",
-            "description": "Model slug."
+            "$ref": "#/components/schemas/AgentModel",
+            "description": "Model the session is launched with."
           },
-          "modifiedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the session was last modified."
-          },
-          "originatingMessageId": {
+          "repo_url": {
             "type": ["string", "null"],
-            "format": "uuid",
-            "description": "The exact message that invoked the bot, if any."
+            "description": "Repository cloned into the workspace. `None` means no checkout: the\nsession gets an empty workspace, and there is no deployment-wide\ndefault standing behind it."
           },
-          "ownerId": {
-            "type": "string",
-            "description": "The user who created and owns the session."
-          },
-          "repoUrl": {
-            "type": "string",
-            "description": "The repository the session works with."
-          },
-          "status": {
-            "$ref": "#/components/schemas/SessionStatusDto",
-            "description": "The session's status."
-          },
-          "threadId": {
+          "system_prompt": {
             "type": ["string", "null"],
-            "format": "uuid",
-            "description": "The root message of the thread the session was created from, if any."
+            "description": "Markdown instructions prepended to every session, if any."
           }
         }
+      },
+      "AgentModel": {
+        "type": "string",
+        "description": "Model a persona's sessions are launched with.",
+        "enum": ["claude"]
       },
       "Anchor": {
         "oneOf": [
@@ -15394,6 +15559,38 @@
           "token": {
             "type": "string",
             "description": "A pre-generated permission token that you can use for SS"
+          }
+        }
+      },
+      "CreatePersonaRequest": {
+        "type": "object",
+        "description": "Request to create a persona.",
+        "required": ["team_id", "name", "handle", "agent"],
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/AgentConfig",
+            "description": "What it runs."
+          },
+          "avatar_url": {
+            "type": ["string", "null"],
+            "description": "Optional avatar URL."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Optional description."
+          },
+          "handle": {
+            "type": "string",
+            "description": "Stable handle, used for `@` mentions."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Team the persona belongs to. The caller must administer it."
           }
         }
       },
@@ -19664,6 +19861,11 @@
         "description": "Sort method for grouped queries (frecency not supported).",
         "enum": ["viewed_at", "created_at", "updated_at", "viewed_updated"]
       },
+      "Harness": {
+        "type": "string",
+        "description": "Harness a persona's sessions run under.\n\nA closed set: this is what we launch inside the sandbox, not something an\nexternal system reports back. Contrast `agent_session.model`, which records\nwhatever model the running agent tells us it used and is therefore a plain\nstring.",
+        "enum": ["open_code"]
+      },
       "HashMap": {
         "type": "object",
         "additionalProperties": {
@@ -19905,28 +20107,31 @@
         ],
         "description": "Location response with content lifecycle metadata."
       },
-      "LogDirectionDto": {
-        "type": "string",
-        "description": "Which way a logged frame travelled, mirroring [`Message`]'s discriminant.",
-        "enum": ["to_server", "to_runtime"]
-      },
-      "LogFrameDto": {
-        "type": "object",
-        "description": "The two fields [`AgentSessionLogEntryDto`] flattens in.\n\nSchema only. Nothing constructs one: the entry serializes through\n[`Message`], and this exists so the generated clients see `direction` and\n`content` as named fields instead of an open map. A hand-built copy could\ndrift from the fold's wire format, and the point of the endpoint is that it\ncannot - so this describes that format without being able to produce it.",
-        "required": ["direction", "content"],
-        "properties": {
-          "content": {
-            "type": "object",
-            "description": "The protocol envelope, verbatim. Opaque here: it is Agent Runtime\nProtocol, whose shape belongs to the fold rather than this endpoint."
-          },
-          "direction": {
-            "$ref": "#/components/schemas/LogDirectionDto",
-            "description": "Which way the frame travelled."
-          }
-        }
-      },
       "MacroUserIdStr": {
         "type": "string"
+      },
+      "MentionableBot": {
+        "type": "object",
+        "description": "A bot the caller may `@`-mention, projected down to what a typeahead needs.",
+        "required": ["id", "name", "handle"],
+        "properties": {
+          "avatar_url": {
+            "type": ["string", "null"],
+            "description": "Avatar, when it has one."
+          },
+          "handle": {
+            "type": "string",
+            "description": "Handle typed after the `@`."
+          },
+          "id": {
+            "$ref": "#/components/schemas/BotId",
+            "description": "Bot id. Mentions carry this as `bot|{id}`."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          }
+        }
       },
       "Mentions": {
         "type": "object",
@@ -20075,6 +20280,39 @@
           "nonce": {
             "type": ["string", "null"],
             "description": "Optional optimistic-update nonce."
+          }
+        }
+      },
+      "PatchPersonaRequest": {
+        "type": "object",
+        "description": "Request to patch a persona. Absent fields are left unchanged.",
+        "properties": {
+          "agent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentConfig",
+                "description": "Replacement agent configuration, applied wholesale when present."
+              }
+            ]
+          },
+          "avatar_url": {
+            "type": ["string", "null"],
+            "description": "Optional avatar URL."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Optional description."
+          },
+          "handle": {
+            "type": ["string", "null"],
+            "description": "Stable handle."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Display name."
           }
         }
       },
@@ -20630,6 +20868,25 @@
             "format": "double"
           }
         }
+      },
+      "Persona": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bot",
+            "description": "The bot identity: name, handle, avatar, ownership."
+          },
+          {
+            "type": "object",
+            "required": ["agent"],
+            "properties": {
+              "agent": {
+                "$ref": "#/components/schemas/AgentConfig",
+                "description": "What it runs."
+              }
+            }
+          }
+        ],
+        "description": "A persona: an agent-backed system bot a team owns and edits."
       },
       "PinRequest": {
         "type": "object",
@@ -21717,67 +21974,6 @@
             "description": "If the document is an editable file, we provide a presigned url to save the updated file to."
           }
         }
-      },
-      "SessionBot": {
-        "type": "object",
-        "description": "The agent behind a session, as much of it as rendering a message needs.",
-        "required": ["id", "name"],
-        "properties": {
-          "avatarUrl": {
-            "type": ["string", "null"],
-            "description": "Avatar, when it has one."
-          },
-          "id": {
-            "$ref": "#/components/schemas/BotId",
-            "description": "The bot's id. A message it sent has `\"bot|{id}\"` as its sender."
-          },
-          "name": {
-            "type": "string",
-            "description": "Display name."
-          }
-        }
-      },
-      "SessionStatusDto": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "No status updates received.",
-            "required": ["kind"],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["no_messages"]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "The last system event received from the runtime.",
-            "required": ["event", "kind"],
-            "properties": {
-              "event": {
-                "type": "string",
-                "description": "The wire name of the system event, e.g. `acp_ready`."
-              },
-              "kind": {
-                "type": "string",
-                "enum": ["event"]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "The session disconnected without sending a closed event.",
-            "required": ["kind"],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["disconnected"]
-              }
-            }
-          }
-        ],
-        "description": "Transport representation of a session's status, mirroring\n[`SessionStatus`]."
       },
       "SetCompanyHiddenRequest": {
         "type": "object",

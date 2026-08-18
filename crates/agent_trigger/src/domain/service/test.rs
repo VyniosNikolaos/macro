@@ -51,7 +51,7 @@ fn session(id: AgentSessionId, bot_id: BotId) -> AgentSession {
         bot_id,
         model: "model".to_owned(),
         harness: "harness".to_owned(),
-        repo_url: "https://example.com/repo".to_owned(),
+        repo_url: Some("https://example.com/repo".to_owned()),
         acp_session_id: None,
         status: SessionStatus::NoMessages,
         created_at: Utc::now(),

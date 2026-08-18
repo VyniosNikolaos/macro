@@ -250,8 +250,6 @@ export const storageExcluded = [
   'deleteUserDocumentViewLocation',
   'deleteViewHandler',
   'excludeDefaultViewHandler',
-  'getAgentSession',
-  'getAgentSessionLog',
   'getAttachmentReferences',
   'getBatchCallRecordPreview',
   'getBatchChannelPreview',

@@ -284,8 +284,9 @@ pub struct AgentSessionResponse {
     pub model: String,
     /// Harness slug.
     pub harness: String,
-    /// The repository the session works with.
-    pub repo_url: String,
+    /// The repository the session works with, absent when it runs without a
+    /// checkout.
+    pub repo_url: Option<String>,
     /// The ACP session id, if one exists.
     pub acp_session_id: Option<String>,
     /// The session's status.

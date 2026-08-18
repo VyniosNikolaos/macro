@@ -28,13 +28,13 @@ use macro_uuid::Uuid;
 use super::AgentHarnessService;
 use crate::domain::error::HarnessError;
 use crate::domain::model::{
-    AnnounceOrigin, DeliverAction, HarnessCommand, MentionOrigin, OpenSession, SessionDefaults,
-    SpawnContainer,
+    AnnounceOrigin, DeliverAction, HarnessCommand, MentionOrigin, OpenSession, SpawnContainer,
 };
 use crate::domain::ports::ContainerManager as _;
 use crate::testing::helpers::agent::FakeAgent;
 use crate::testing::helpers::announcer::AnnouncerMock;
 use crate::testing::helpers::containers::{ContainerMock, MockContainerManager};
+use crate::testing::helpers::personas::PersonaConfigMock;
 
 fn sender() -> MacroUserIdStr<'static> {
     MacroUserIdStr::try_from_email("asker@example.com").expect("a valid user id")
@@ -76,6 +76,7 @@ fn harness() -> (
         >,
         MockContainerManager,
         AnnouncerMock,
+        PersonaConfigMock,
     >,
     InMemoryAgentSessionRepo,
     MockContainerManager,
@@ -92,11 +93,7 @@ fn harness() -> (
         ),
         containers.clone(),
         announcer.clone(),
-        SessionDefaults {
-            model: "claude".to_owned(),
-            harness: "opencode".to_owned(),
-            repo_url: "https://github.com/macro-inc/macro".to_owned(),
-        },
+        PersonaConfigMock::new(),
     );
     (service, repo, containers, announcer)
 }
@@ -158,7 +155,7 @@ async fn disconnected_session(
             originating_message_id: Some(origin.message_id),
             model: "claude".to_owned(),
             harness: "opencode".to_owned(),
-            repo_url: "https://github.com/macro-inc/macro".to_owned(),
+            repo_url: Some("https://github.com/macro-inc/macro".to_owned()),
         },
     )
     .await
@@ -169,7 +166,8 @@ async fn disconnected_session(
     containers
         .spawn(SpawnContainer {
             session_id: id,
-            repo_url: "https://github.com/macro-inc/macro".to_owned(),
+            repo_url: Some("https://github.com/macro-inc/macro".to_owned()),
+            system_prompt: None,
         })
         .await
         .expect("the original sandbox should exist");
@@ -261,7 +259,7 @@ async fn open_announces_while_the_container_is_still_booting() {
 
 #[tokio::test]
 async fn forward_to_a_live_session_reuses_the_transport() {
-    let (service, repo, containers, announcer) = harness();
+    let (service, _repo, containers, announcer) = harness();
     let command = open_command();
     let id = AgentSessionId::new();
     let open = service.execute(id, HarnessCommand::Open(command));
@@ -548,6 +546,7 @@ async fn live_session(
         >,
         MockContainerManager,
         AnnouncerMock,
+        PersonaConfigMock,
     >,
     containers: &MockContainerManager,
     id: AgentSessionId,

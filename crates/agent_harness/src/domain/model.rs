@@ -110,6 +110,10 @@ impl DeliverAction {
 pub struct SessionAnnouncement {
     /// Agent session represented by the announcement.
     pub session_id: AgentSessionId,
+    /// Bot to post as. Carried per announcement rather than fixed on the
+    /// announcer: one deployment now serves every persona, so the sender is a
+    /// property of the session, not of the process.
+    pub bot_id: BotId,
     /// Channel containing the mention that opened the session.
     pub origin_channel_id: Uuid,
     /// Thread where the announcement should be posted.
@@ -127,17 +131,10 @@ pub struct SessionAnnouncement {
 pub struct SpawnContainer {
     /// Session that will own the container transport.
     pub session_id: AgentSessionId,
-    /// Repository cloned into the container workspace.
-    pub repo_url: String,
-}
-
-/// Session-row values that remain deployment configuration for now.
-#[derive(Debug, Clone)]
-pub struct SessionDefaults {
-    /// Model slug, e.g. `claude`.
-    pub model: String,
-    /// Harness slug, e.g. `opencode`.
-    pub harness: String,
-    /// Repository sessions run against.
-    pub repo_url: String,
+    /// Repository cloned into the container workspace. `None` means the
+    /// persona named no repository, and the session gets an empty workspace -
+    /// there is no deployment-wide default standing behind it.
+    pub repo_url: Option<String>,
+    /// Markdown instructions the persona prepends to every session, if any.
+    pub system_prompt: Option<String>,
 }

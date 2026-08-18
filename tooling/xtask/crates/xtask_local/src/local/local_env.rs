@@ -238,25 +238,23 @@ impl MailEnv {
 /// The agent harness: which bot it answers for, and the Daytona sandbox
 /// credentials.
 ///
-/// The bot id and snapshot name are deterministic (the bot is seeded by
-/// migration). The two secrets are seeded empty so the process-env overlay can
-/// replace them; the harness refuses to start unless both are supplied.
+/// The snapshot name is deterministic. The two secrets are seeded empty so the
+/// process-env overlay can replace them; the harness refuses to start unless
+/// both are supplied. Which bots it answers for is no longer configuration:
+/// the deployment serves every persona, reading each one's config from
+/// `bot_agent_config`.
 struct AgentHarnessEnv {
-    bot_id: &'static str,
     snapshot: &'static str,
 }
 
 impl AgentHarnessEnv {
     fn local() -> Self {
         AgentHarnessEnv {
-            // bot_id::MACRO_CODER_BOT_ID, seeded by the bots_has_agent migration.
-            bot_id: "00000000-0000-0000-0000-00000000a9e7",
             snapshot: "macro-agent-harness",
         }
     }
 
     fn write(&self, env: &mut BTreeMap<String, String>) {
-        env.insert("HARNESS_BOT_ID".into(), self.bot_id.into());
         env.insert("DAYTONA_SNAPSHOT".into(), self.snapshot.into());
         env.insert("DAYTONA_API_KEY".into(), String::new());
         env.insert("GITHUB_TOKEN".into(), String::new());

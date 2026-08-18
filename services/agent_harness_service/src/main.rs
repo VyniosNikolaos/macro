@@ -11,7 +11,6 @@ mod config;
 use std::sync::Arc;
 
 use agent_fold::domain::service::FoldedMessageService;
-use agent_harness::domain::model::SessionDefaults;
 use agent_harness::domain::service::AgentHarnessService;
 use agent_harness::inbound::kafka::agent_trigger_to_harness_command;
 use agent_harness::outbound::channel_announcer::ChannelAnnouncer;
@@ -19,6 +18,7 @@ use agent_harness::outbound::daytona::{
     DaytonaApiKey as DaytonaApiKeySecret, DaytonaContainerManager, DaytonaSettings,
     GithubToken as GithubTokenSecret, Snapshot,
 };
+use agent_harness::outbound::persona_config::BotsPersonaConfig;
 use agent_session::domain::ports::NoOpRealtime;
 use agent_session::domain::service::AgentSessionServiceImpl;
 use agent_session::inbound::axum_router::{AgentSessionControlState, AgentSessionRouterState};
@@ -26,7 +26,8 @@ use agent_session::outbound::connection_gateway_realtime::ConnectionGatewayAgent
 use agent_session::outbound::postgres::PgAgentSessionRepo;
 use agent_trigger::domain::broker_events::AgentSessionMacroEvent;
 use anyhow::Context as _;
-use bot_id::BotId;
+use bots::domain::service::BotServiceImpl;
+use bots::outbound::pg_bots_repo::PgBotsRepo;
 use channels::domain::service::ChannelServiceImpl;
 use channels::domain::side_effects::{ChannelSideEffectService, SpawnedChannelEventDispatcher};
 use channels::outbound::connection_gateway_realtime::ConnectionGatewayChannelRealtimePublisher;
@@ -81,15 +82,12 @@ async fn main() -> anyhow::Result<()> {
     MacroEntrypoint::default().init();
     agent_harness::install_tls_provider();
     let config = Config::from_env()?;
-    let bot_id = BotId::new_from_uuid(config.harness_bot_id);
-    anyhow::ensure!(
-        !config.daytona_api_key.trim().is_empty(),
-        "DAYTONA_API_KEY is required"
-    );
-    anyhow::ensure!(
-        !config.github_token.trim().is_empty(),
-        "GITHUB_TOKEN is required"
-    );
+    if config.daytona_api_key.trim().is_empty() {
+        tracing::warn!("DAYTONA_API_KEY is not configured; agent sessions cannot start");
+    }
+    if config.github_token.trim().is_empty() {
+        tracing::warn!("GITHUB_TOKEN is not configured; private repositories cannot be cloned");
+    }
 
     let pool = PgPoolOptions::new()
         .min_connections(1)
@@ -153,7 +151,7 @@ async fn main() -> anyhow::Result<()> {
         NotificationChannelSender::new(notifications),
         ContactsChannelDispatcher::new(contacts_ingress),
     )
-    .with_macro_event_broker(broker);
+    .with_macro_event_broker(broker.clone());
     let channel_service = Arc::new(ChannelServiceImpl::with_dependencies(
         PgChannelsRepo::new(pool.clone()),
         SpawnedChannelEventDispatcher::new(side_effects),
@@ -161,22 +159,19 @@ async fn main() -> anyhow::Result<()> {
     ));
     let announcer = ChannelAnnouncer::new(
         channel_service,
-        bot_id,
         LexicalClient::new(
             config.internal_api_key.clone(),
             LexicalServiceUrl::new()?.to_string(),
         ),
     );
 
+    // What a session runs comes from the persona that was mentioned, read
+    // through the bots crate that owns `bot_agent_config`.
+    let personas =
+        BotsPersonaConfig::new(BotServiceImpl::new(PgBotsRepo::new(pool.clone()), broker));
+
     let harness = Arc::new(AgentHarnessService::new(
-        sessions,
-        containers,
-        announcer,
-        SessionDefaults {
-            model: config.harness_model.clone(),
-            harness: config.harness_slug.clone(),
-            repo_url: config.harness_repo_url.clone(),
-        },
+        sessions, containers, announcer, personas,
     ));
 
     // The complete session API is served from this process because it owns the
@@ -239,7 +234,6 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(
         topics = ?DeclaredMacroEvent::topics(),
         group = AgentHarnessConsumerGroup::GROUP_NAME,
-        %bot_id,
         environment = %config.environment,
         "agent harness service listening"
     );
@@ -281,7 +275,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 };
 
-                let (session_id, command) = match agent_trigger_to_harness_command(event.event().event.clone(), bot_id) {
+                let (session_id, command) = match agent_trigger_to_harness_command(event.event().event.clone()) {
                     Ok(command) => command,
                     Err(skipped) => {
                         tracing::debug!(?skipped, "skipped an agent session event");

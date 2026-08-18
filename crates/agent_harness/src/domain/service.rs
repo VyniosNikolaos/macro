@@ -17,10 +17,9 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::domain::error::{HarnessError, Result};
 use crate::domain::model::{
-    AnnounceOrigin, DeliverAction, HarnessCommand, OpenSession, SessionAnnouncement,
-    SessionDefaults, SpawnContainer,
+    AnnounceOrigin, DeliverAction, HarnessCommand, OpenSession, SessionAnnouncement, SpawnContainer,
 };
-use crate::domain::ports::{ContainerManager, SessionAnnouncer};
+use crate::domain::ports::{ContainerManager, PersonaConfig, SessionAnnouncer};
 
 type SessionWorkers = DashMap<AgentSessionId, mpsc::UnboundedSender<QueuedCommand>>;
 
@@ -29,38 +28,40 @@ struct QueuedCommand {
     completed: oneshot::Sender<Result<()>>,
 }
 
-struct AgentHarnessInner<Sessions, Containers, Announcer> {
+struct AgentHarnessInner<Sessions, Containers, Announcer, Personas> {
     sessions: Sessions,
     containers: Containers,
     announcer: Announcer,
-    defaults: SessionDefaults,
+    personas: Personas,
 }
 
 /// Turns trigger commands into running, announced agent sessions.
-pub struct AgentHarnessService<Sessions, Containers, Announcer> {
-    inner: Arc<AgentHarnessInner<Sessions, Containers, Announcer>>,
+pub struct AgentHarnessService<Sessions, Containers, Announcer, Personas> {
+    inner: Arc<AgentHarnessInner<Sessions, Containers, Announcer, Personas>>,
     workers: Arc<SessionWorkers>,
 }
 
-impl<Sessions, Containers, Announcer> AgentHarnessService<Sessions, Containers, Announcer>
+impl<Sessions, Containers, Announcer, Personas>
+    AgentHarnessService<Sessions, Containers, Announcer, Personas>
 where
     Sessions: AgentSessionService,
     Containers: ContainerManager,
     Announcer: SessionAnnouncer,
+    Personas: PersonaConfig,
 {
     /// Build the orchestrator from its ports.
     pub fn new(
         sessions: Sessions,
         containers: Containers,
         announcer: Announcer,
-        defaults: SessionDefaults,
+        personas: Personas,
     ) -> Self {
         Self {
             inner: Arc::new(AgentHarnessInner {
                 sessions,
                 containers,
                 announcer,
-                defaults,
+                personas,
             }),
             workers: Arc::new(DashMap::new()),
         }
@@ -122,12 +123,13 @@ where
 /// control routes notify. Both operations go through the per-session queue, so
 /// a teardown cannot land in the middle of an open and a model change cannot
 /// overtake the prompt it was meant to follow.
-impl<Sessions, Containers, Announcer> AgentSessionNotificationRecipient
-    for AgentHarnessService<Sessions, Containers, Announcer>
+impl<Sessions, Containers, Announcer, Personas> AgentSessionNotificationRecipient
+    for AgentHarnessService<Sessions, Containers, Announcer, Personas>
 where
     Sessions: AgentSessionService,
     Containers: ContainerManager,
     Announcer: SessionAnnouncer,
+    Personas: PersonaConfig,
 {
     async fn session_deleted(
         &self,
@@ -165,11 +167,13 @@ fn into_session_error(error: HarnessError) -> AgentSessionError {
     }
 }
 
-impl<Sessions, Containers, Announcer> AgentHarnessInner<Sessions, Containers, Announcer>
+impl<Sessions, Containers, Announcer, Personas>
+    AgentHarnessInner<Sessions, Containers, Announcer, Personas>
 where
     Sessions: AgentSessionService,
     Containers: ContainerManager,
     Announcer: SessionAnnouncer,
+    Personas: PersonaConfig,
 {
     async fn execute(&self, session_id: AgentSessionId, command: HarnessCommand) -> Result<()> {
         match command {
@@ -200,7 +204,15 @@ where
     ))]
     async fn open(&self, session_id: AgentSessionId, command: OpenSession) -> Result<()> {
         let OpenSession { bot_id, origin } = command;
-        let repo_url = self.defaults.repo_url.clone();
+
+        // The persona is the only source for what this session runs. A bot
+        // that reached the harness without one is a mention we cannot serve,
+        // and failing here is better than silently booting some default.
+        let persona = self
+            .personas
+            .get(bot_id)
+            .await?
+            .ok_or(HarnessError::NoAgentConfig(bot_id))?;
 
         self.sessions
             .create_session(CreateAgentSessionParams {
@@ -209,15 +221,16 @@ where
                 bot_id,
                 thread_id: Some(origin.thread_id),
                 originating_message_id: Some(origin.message_id),
-                model: self.defaults.model.clone(),
-                harness: self.defaults.harness.clone(),
-                repo_url: repo_url.clone(),
+                model: persona.model.as_str().to_owned(),
+                harness: persona.harness.as_str().to_owned(),
+                repo_url: persona.repo_url.clone(),
             })
             .await?;
 
         self.announcer
             .announce(SessionAnnouncement {
                 session_id,
+                bot_id,
                 origin_channel_id: origin.channel_id,
                 origin_thread_id: origin.thread_id,
                 prompted_message_id: MessageId::first(AuthorKind::User),
@@ -230,7 +243,8 @@ where
             .containers
             .spawn(SpawnContainer {
                 session_id,
-                repo_url,
+                repo_url: persona.repo_url,
+                system_prompt: persona.system_prompt,
             })
             .await?;
         self.sessions.attach_session(session_id, container).await?;
@@ -306,8 +320,13 @@ where
             return Ok(None);
         };
 
+        // Post as the session's own bot: which persona is answering is a fact
+        // of the session, and this deployment serves all of them.
+        let bot_id = self.sessions.get_session(session_id).await?.bot_id;
+
         Ok(Some(SessionAnnouncement {
             session_id,
+            bot_id,
             origin_channel_id: origin.channel_id,
             origin_thread_id: origin.thread_id,
             prompted_message_id: self.sessions.next_prompt_message_id(session_id).await?,
@@ -317,14 +336,15 @@ where
     }
 }
 
-async fn run_session_worker<Sessions, Containers, Announcer>(
+async fn run_session_worker<Sessions, Containers, Announcer, Personas>(
     session_id: AgentSessionId,
-    inner: Arc<AgentHarnessInner<Sessions, Containers, Announcer>>,
+    inner: Arc<AgentHarnessInner<Sessions, Containers, Announcer, Personas>>,
     mut receiver: mpsc::UnboundedReceiver<QueuedCommand>,
 ) where
     Sessions: AgentSessionService,
     Containers: ContainerManager,
     Announcer: SessionAnnouncer,
+    Personas: PersonaConfig,
 {
     while let Some(queued) = receiver.recv().await {
         let QueuedCommand { command, completed } = queued;

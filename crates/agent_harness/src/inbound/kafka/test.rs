@@ -13,6 +13,7 @@ use macro_uuid::Uuid;
 
 use super::*;
 use crate::domain::model::HarnessCommand;
+use bot_id::BotId;
 
 fn user() -> MacroUserIdStr<'static> {
     MacroUserIdStr::try_from_email("asker@example.com").expect("a valid user id")
@@ -51,12 +52,12 @@ fn channel_message(bot: BotId) -> AgentTriggerTopicEvent {
 }
 
 #[test]
-fn a_mention_for_our_bot_opens_a_session() {
-    let (_, command) = agent_trigger_to_harness_command(
-        mentioned(BotId::TEST_A, ChannelSender::new_from_user(user())),
+fn a_mention_opens_a_session() {
+    let (_, command) = agent_trigger_to_harness_command(mentioned(
         BotId::TEST_A,
-    )
-    .expect("a mention for our bot should yield a command");
+        ChannelSender::new_from_user(user()),
+    ))
+    .expect("a mention should yield a command");
 
     let HarnessCommand::Open(open) = command else {
         panic!("a new-session event should open");
@@ -81,38 +82,35 @@ fn a_threaded_mention_answers_into_its_thread() {
         },
     ));
 
-    let (_, HarnessCommand::Open(open)) = agent_trigger_to_harness_command(event, BotId::TEST_A)
-        .expect("the mention should yield a command")
+    let (_, HarnessCommand::Open(open)) =
+        agent_trigger_to_harness_command(event).expect("the mention should yield a command")
     else {
         panic!("a new-session event should open");
     };
     assert_eq!(open.origin.thread_id, thread);
 }
 
+/// One deployment serves every persona, so an event naming a bot this process
+/// has never heard of is still routed - the bot id travels with the command.
 #[test]
-fn a_foreign_bots_event_is_skipped() {
-    assert_eq!(
-        agent_trigger_to_harness_command(
-            mentioned(BotId::TEST_A, ChannelSender::new_from_user(user())),
-            BotId::TEST_B,
-        )
-        .unwrap_err(),
-        Skipped::ForeignBot
-    );
-    assert_eq!(
-        agent_trigger_to_harness_command(channel_message(BotId::TEST_A), BotId::TEST_B)
-            .unwrap_err(),
-        Skipped::ForeignBot
-    );
+fn any_bots_mention_is_routed() {
+    let (_, HarnessCommand::Open(open)) = agent_trigger_to_harness_command(mentioned(
+        BotId::TEST_B,
+        ChannelSender::new_from_user(user()),
+    ))
+    .expect("a mention for any bot should yield a command") else {
+        panic!("a new-session event should open");
+    };
+    assert_eq!(open.bot_id, BotId::TEST_B);
 }
 
 #[test]
 fn a_bot_authored_mention_is_skipped() {
     assert_eq!(
-        agent_trigger_to_harness_command(
-            mentioned(BotId::TEST_A, ChannelSender::new_from_bot(BotId::TEST_B)),
+        agent_trigger_to_harness_command(mentioned(
             BotId::TEST_A,
-        )
+            ChannelSender::new_from_bot(BotId::TEST_B),
+        ))
         .unwrap_err(),
         Skipped::NotFromUser
     );
@@ -120,9 +118,8 @@ fn a_bot_authored_mention_is_skipped() {
 
 #[test]
 fn a_channel_message_forwards_to_its_session() {
-    let (session_id, command) =
-        agent_trigger_to_harness_command(channel_message(BotId::TEST_A), BotId::TEST_A)
-            .expect("a channel event for our bot should yield a command");
+    let (session_id, command) = agent_trigger_to_harness_command(channel_message(BotId::TEST_A))
+        .expect("a channel event should yield a command");
 
     let HarnessCommand::Deliver(deliver) = command else {
         panic!("an existing-session event should deliver");

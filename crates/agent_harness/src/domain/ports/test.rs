@@ -31,7 +31,7 @@ fn params(id: AgentSessionId) -> CreateAgentSessionParams {
         originating_message_id: None,
         model: "claude".to_owned(),
         harness: "opencode".to_owned(),
-        repo_url: "https://github.com/macro/macro".to_owned(),
+        repo_url: Some("https://github.com/macro/macro".to_owned()),
     }
 }
 
@@ -60,7 +60,8 @@ async fn container_session_runs_and_logs_end_to_end() {
     let container = containers
         .spawn(SpawnContainer {
             session_id: id,
-            repo_url: "https://github.com/macro/macro".to_owned(),
+            repo_url: Some("https://github.com/macro/macro".to_owned()),
+            system_prompt: None,
         })
         .await
         .unwrap();

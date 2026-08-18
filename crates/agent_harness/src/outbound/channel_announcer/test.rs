@@ -7,6 +7,7 @@ use super::*;
 fn chip_carries_the_announcement_identity() {
     let announcement = SessionAnnouncement {
         session_id: agent_session::domain::model::AgentSessionId::TEST_A,
+        bot_id: bot_id::BotId::TEST_A,
         origin_channel_id: Uuid::from_u128(1),
         origin_thread_id: Uuid::from_u128(2),
         prompted_message_id: agent_session::domain::model::MessageId::first(

@@ -259,11 +259,11 @@ pub const RUST_SERVICES: &[RustService] = &[
         compose_name: "agent_harness_service",
         cargo_bin: "agent_harness_service",
         package: "agent_harness_service",
-        host_port: None,
+        host_port: Some(Port::AgentHarness),
         path_prefix: Some("/agent-harness"),
         is_websocket: false,
         // Runs by default. LocalEnv reserves the credential keys so the
-        // process-env overlay can supply them; startup requires both.
+        // process-env overlay can enable Daytona-backed agent sessions.
         modes: &[Mode::Local],
         opt_in: false,
         no_default_features: false,

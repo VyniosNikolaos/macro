@@ -2,15 +2,18 @@
 //!
 //! The trigger service already did the hard part - watching the channel
 //! firehose, matching mentions to sessions, dropping the bot's own messages -
-//! so this adapter only routes: is this event for our bot, and is it an open
-//! or a forward? Pure translation, no IO; the consumer loop lives in the
-//! service binary.
+//! so this adapter only routes: is this an open or a forward? Pure
+//! translation, no IO; the consumer loop lives in the service binary.
+//!
+//! Every agent-backed bot is served by this one deployment. It used to filter
+//! events down to a single configured bot id, which personas made untenable:
+//! a team can mint any number of them, and each would otherwise need its own
+//! deployment to be answered at all.
 
 use agent_session::domain::model::AgentSessionId;
 use agent_trigger::domain::broker_events::{
     AgentTriggerTopicEvent, ChannelEventMetadata, ExistingAgentSessionEvent, NewAgentSessionEvent,
 };
-use bot_id::BotId;
 
 use crate::domain::model::{
     AnnounceOrigin, DeliverAction, HarnessCommand, MentionOrigin, OpenSession,
@@ -23,8 +26,6 @@ mod test;
 /// errors, and the consumer commits the offset either way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Skipped {
-    /// The event belongs to a different bot's deployment.
-    ForeignBot,
     /// The sender is not a user, so there is nobody to own the session.
     NotFromUser,
     /// An event shape this harness does not recognise yet - the trigger's
@@ -33,17 +34,12 @@ pub enum Skipped {
     Unrecognized,
 }
 
-/// Route one trigger event: a command for `our_bot`, or a reason it was
-/// skipped.
+/// Route one trigger event into a harness command, or a reason it was skipped.
 pub fn agent_trigger_to_harness_command(
     event: AgentTriggerTopicEvent,
-    our_bot: BotId,
 ) -> Result<(AgentSessionId, HarnessCommand), Skipped> {
     match event {
         AgentTriggerTopicEvent::New(NewAgentSessionEvent::TopLevelMentioned(mentioned)) => {
-            if mentioned.bot_id != our_bot {
-                return Err(Skipped::ForeignBot);
-            }
             let message = mentioned.message;
             let sender = message
                 .sender
@@ -68,26 +64,21 @@ pub fn agent_trigger_to_harness_command(
         }
         AgentTriggerTopicEvent::Existing(ExistingAgentSessionEvent::Channel(
             ChannelEventMetadata {
-                bot_id,
+                bot_id: _,
                 session_id,
                 message,
             },
-        )) => {
-            if bot_id != our_bot {
-                return Err(Skipped::ForeignBot);
-            }
-            Ok((
-                session_id,
-                HarnessCommand::Deliver(DeliverAction::prompt(
-                    message.content,
-                    message.sender.as_user().cloned(),
-                    Some(AnnounceOrigin {
-                        channel_id: message.channel_id,
-                        thread_id: message.thread_id.unwrap_or(message.message_id),
-                    }),
-                )),
-            ))
-        }
+        )) => Ok((
+            session_id,
+            HarnessCommand::Deliver(DeliverAction::prompt(
+                message.content,
+                message.sender.as_user().cloned(),
+                Some(AnnounceOrigin {
+                    channel_id: message.channel_id,
+                    thread_id: message.thread_id.unwrap_or(message.message_id),
+                }),
+            )),
+        )),
         _ => Err(Skipped::Unrecognized),
     }
 }

@@ -239,17 +239,10 @@ impl ContainerManager for DaytonaContainerManager {
 
     #[tracing::instrument(err, skip(self))]
     async fn spawn(&self, command: SpawnContainer) -> Result<DaytonaContainer> {
-        let SpawnContainer {
-            session_id,
-            repo_url,
-        } = command;
-        let env = Env::from(HashMap::from([
-            ("REPO_URL".to_owned(), repo_url),
-            (
-                "GITHUB_TOKEN".to_owned(),
-                self.github_token.expose().to_owned(),
-            ),
-        ]));
+        let session_id = command.session_id;
+        let env = Env::from(HashMap::from_iter(
+            crate::outbound::session_env::session_env(&command, self.github_token.expose()),
+        ));
         let labels = Labels::from(HashMap::from([(
             SESSION_LABEL.to_owned(),
             session_id.to_string(),

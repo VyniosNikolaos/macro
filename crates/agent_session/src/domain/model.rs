@@ -42,8 +42,9 @@ pub struct CreateAgentSessionParams {
     pub model: String,
     /// Harness slug.
     pub harness: String,
-    /// Repository the agent works with.
-    pub repo_url: String,
+    /// Repository the agent works with, when the persona named one. `None`
+    /// means the session runs in an empty workspace.
+    pub repo_url: Option<String>,
 }
 
 /// A running or historical agent coding session.
@@ -63,8 +64,10 @@ pub struct AgentSession {
     pub model: String,
     /// harness slug - TODO: probably a better type here
     pub harness: String,
-    /// repo we are working with
-    pub repo_url: String,
+    /// repo we are working with, if any. Recorded per session rather than read
+    /// back off the persona, so editing a persona never rewrites the history of
+    /// what a past session actually cloned.
+    pub repo_url: Option<String>,
     /// ACP session if we have one
     pub acp_session_id: Option<String>,
     pub status: SessionStatus,

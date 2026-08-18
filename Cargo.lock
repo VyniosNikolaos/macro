@@ -190,6 +190,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bot_id",
+ "bots",
  "channel_sender",
  "channels",
  "chrono",

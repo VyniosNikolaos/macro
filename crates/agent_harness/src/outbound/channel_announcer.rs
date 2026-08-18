@@ -16,7 +16,6 @@ mod test;
 
 use std::sync::Arc;
 
-use bot_id::BotId;
 use channel_sender::ChannelSender;
 use channels::domain::models::{PostMessageNotificationPolicy, PostMessageRequest};
 use channels::domain::ports::ChannelService;
@@ -36,22 +35,19 @@ fn announcement_chip(announcement: &SessionAnnouncement) -> AgentAnnouncementChi
     }
 }
 
-/// Posts session announcements as `bot_id` through a [`ChannelService`].
+/// Posts session announcements through a [`ChannelService`], as whichever bot
+/// the announcement names.
 pub struct ChannelAnnouncer<Channels> {
     channels: Arc<Channels>,
-    bot_id: BotId,
     lexical: LexicalClient,
 }
 
 impl<Channels> ChannelAnnouncer<Channels> {
-    /// Announce as `bot_id`, posting through `channels`, with content
-    /// composed by `lexical`.
-    pub fn new(channels: Arc<Channels>, bot_id: BotId, lexical: LexicalClient) -> Self {
-        Self {
-            channels,
-            bot_id,
-            lexical,
-        }
+    /// Post announcements through `channels`, with content composed by
+    /// `lexical`. The sending bot comes from each announcement: one harness
+    /// deployment serves every persona, so it cannot be fixed here.
+    pub fn new(channels: Arc<Channels>, lexical: LexicalClient) -> Self {
+        Self { channels, lexical }
     }
 }
 
@@ -69,7 +65,7 @@ where
 
         self.channels
             .post_message(
-                ChannelSender::new_from_bot(self.bot_id),
+                ChannelSender::new_from_bot(announcement.bot_id),
                 announcement.origin_channel_id,
                 PostMessageRequest {
                     content,

@@ -87,7 +87,7 @@ fn new_session(
         originating_message_id,
         model: "claude-sonnet-5".to_string(),
         harness: "claude-code".to_string(),
-        repo_url: "https://github.com/example/example".to_string(),
+        repo_url: Some("https://github.com/example/example".to_string()),
     }
 }
 
