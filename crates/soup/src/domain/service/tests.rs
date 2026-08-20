@@ -562,7 +562,6 @@ fn channel_thread_message(
     updated_at: DateTime<Utc>,
 ) -> ChannelMessage {
     ChannelMessage {
-        suppress_link_previews: false,
         id: thread_id,
         channel_id,
         sender_id: "macro|test@example.com".to_string(),
@@ -577,7 +576,6 @@ fn channel_thread_message(
             reply_count: 1,
             latest_reply_at: Some(DateTime::default() + Days::new(1)),
             preview: vec![ThreadReply {
-                suppress_link_previews: false,
                 id: reply_id,
                 sender_id: "macro|other@example.com".to_string(),
                 bot_profile: None,

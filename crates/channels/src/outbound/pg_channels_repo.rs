@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use crate::domain::link_preview::remove_link_preview_from_content;
 #[cfg(feature = "attachment")]
 use crate::domain::ports::ChannelAttachmentRepo;
 #[cfg(feature = "list")]
@@ -79,7 +80,6 @@ struct TopLevelRow {
     updated_at: chrono::DateTime<chrono::Utc>,
     edited_at: Option<chrono::DateTime<chrono::Utc>>,
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
-    suppress_link_previews: bool,
 }
 
 /// Intermediate row for resolving a message id.
@@ -102,7 +102,6 @@ struct ThreadDataRow {
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     edited_at: Option<chrono::DateTime<chrono::Utc>>,
-    suppress_link_previews: bool,
     reply_count: i64,
     latest_reply_at: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -118,7 +117,6 @@ struct ThreadReplyOnlyRow {
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     edited_at: Option<chrono::DateTime<chrono::Utc>>,
-    suppress_link_previews: bool,
 }
 
 /// Intermediate row for grouped reactions.
@@ -176,7 +174,6 @@ struct ContextMessageRow {
     updated_at: chrono::DateTime<chrono::Utc>,
     edited_at: Option<chrono::DateTime<chrono::Utc>>,
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
-    suppress_link_previews: bool,
 }
 
 impl From<ContextMessageRow> for ChannelContextMessage {
@@ -194,7 +191,6 @@ impl From<ContextMessageRow> for ChannelContextMessage {
             updated_at: row.updated_at,
             edited_at: row.edited_at,
             deleted_at: row.deleted_at,
-            suppress_link_previews: row.suppress_link_previews,
         }
     }
 }
@@ -222,7 +218,6 @@ struct MutatedMessageRow {
     updated_at: chrono::DateTime<chrono::Utc>,
     edited_at: Option<chrono::DateTime<chrono::Utc>>,
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
-    suppress_link_previews: bool,
 }
 
 /// Intermediate row for mutation-returned attachments.
@@ -307,7 +302,6 @@ fn mutated_message_from_row(row: MutatedMessageRow) -> anyhow::Result<MutatedMes
         updated_at: row.updated_at,
         edited_at: row.edited_at,
         deleted_at: row.deleted_at,
-        suppress_link_previews: row.suppress_link_previews,
     })
 }
 
@@ -1148,8 +1142,7 @@ fn build_channel_thread_rows_query(
             m.created_at AS created_at,
             m.updated_at AS updated_at,
             m.edited_at::timestamptz AS edited_at,
-            m.deleted_at::timestamptz AS deleted_at,
-            m.suppress_link_previews AS suppress_link_previews
+            m.deleted_at::timestamptz AS deleted_at
         FROM comms_messages m
         INNER JOIN user_channels c ON c.id = m.channel_id
         LEFT JOIN LATERAL (
@@ -1486,7 +1479,6 @@ impl ChannelListRepo for PgChannelsRepo {
                     updated_at: row.try_get("updated_at")?,
                     edited_at: row.try_get("edited_at")?,
                     deleted_at: row.try_get("deleted_at")?,
-                    suppress_link_previews: row.try_get("suppress_link_previews")?,
                 })
             })
             .fetch_all(&self.pool)
@@ -1552,7 +1544,6 @@ impl ChannelListRepo for PgChannelsRepo {
                                 created_at: reply.created_at,
                                 updated_at: reply.updated_at,
                                 edited_at: reply.edited_at,
-                                suppress_link_previews: reply.suppress_link_previews,
                                 reactions: reactions.get(&reply.id).cloned().unwrap_or_default(),
                                 attachments: attachments
                                     .get(&reply.id)
@@ -1574,7 +1565,6 @@ impl ChannelListRepo for PgChannelsRepo {
                     updated_at: parent.updated_at,
                     edited_at: parent.edited_at,
                     deleted_at: parent.deleted_at,
-                    suppress_link_previews: parent.suppress_link_previews,
                     thread: ThreadInfo {
                         reply_count: data.map_or(0, |data| data.reply_count),
                         latest_reply_at: data.and_then(|data| data.latest_reply_at),
@@ -1741,8 +1731,7 @@ impl ChannelRepo for PgChannelsRepo {
                         m.created_at,
                         m.updated_at,
                         m.edited_at::timestamptz AS "edited_at?",
-                        m.deleted_at::timestamptz AS "deleted_at?",
-                        m.suppress_link_previews
+                        m.deleted_at::timestamptz AS "deleted_at?"
                     FROM comms_messages m
                     WHERE m.channel_id = $1
                       AND m.thread_id IS NULL
@@ -1835,8 +1824,7 @@ impl ChannelRepo for PgChannelsRepo {
                         m.created_at,
                         m.updated_at,
                         m.edited_at::timestamptz AS "edited_at?",
-                        m.deleted_at::timestamptz AS "deleted_at?",
-                        m.suppress_link_previews
+                        m.deleted_at::timestamptz AS "deleted_at?"
                     FROM comms_messages m
                     WHERE m.channel_id = $1
                       AND m.thread_id IS NULL
@@ -1936,7 +1924,6 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at: r.updated_at,
                 edited_at: r.edited_at,
                 deleted_at: r.deleted_at,
-                suppress_link_previews: r.suppress_link_previews,
             })
             .collect();
 
@@ -1964,7 +1951,6 @@ impl ChannelRepo for PgChannelsRepo {
                 triggered_by_user_id,
                 content AS "content!", created_at AS "created_at!", updated_at AS "updated_at!",
                 edited_at::timestamptz AS "edited_at?",
-                suppress_link_previews AS "suppress_link_previews!",
                 reply_count AS "reply_count!", latest_reply_at AS "latest_reply_at?"
             FROM (
                 SELECT
@@ -1976,7 +1962,6 @@ impl ChannelRepo for PgChannelsRepo {
                     r.created_at,
                     r.updated_at,
                     r.edited_at,
-                    r.suppress_link_previews,
                     COUNT(*) OVER (PARTITION BY r.thread_id) AS reply_count,
                     MAX(r.created_at) OVER (PARTITION BY r.thread_id)::timestamptz AS latest_reply_at,
                     ROW_NUMBER() OVER (
@@ -2011,7 +1996,6 @@ impl ChannelRepo for PgChannelsRepo {
                 created_at: r.created_at,
                 updated_at: r.updated_at,
                 edited_at: r.edited_at,
-                suppress_link_previews: r.suppress_link_previews,
             });
         }
 
@@ -2031,8 +2015,7 @@ impl ChannelRepo for PgChannelsRepo {
                 content,
                 created_at,
                 updated_at,
-                edited_at::timestamptz AS "edited_at?",
-                suppress_link_previews
+                edited_at::timestamptz AS "edited_at?"
             FROM comms_messages
             WHERE thread_id = $1
               AND deleted_at IS NULL
@@ -2054,7 +2037,6 @@ impl ChannelRepo for PgChannelsRepo {
                 created_at: r.created_at,
                 updated_at: r.updated_at,
                 edited_at: r.edited_at,
-                suppress_link_previews: r.suppress_link_previews,
             })
             .collect())
     }
@@ -2264,8 +2246,7 @@ impl ChannelRepo for PgChannelsRepo {
                 created_at,
                 updated_at,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages
             WHERE id = $1 AND channel_id = $2
             "#,
@@ -2292,8 +2273,7 @@ impl ChannelRepo for PgChannelsRepo {
                 created_at,
                 updated_at,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages
             WHERE channel_id = $1
               AND (created_at, id) < ($2, $3)
@@ -2322,8 +2302,7 @@ impl ChannelRepo for PgChannelsRepo {
                 created_at,
                 updated_at,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages
             WHERE channel_id = $1
               AND (created_at, id) > ($2, $3)
@@ -2512,8 +2491,7 @@ impl ChannelRepo for PgChannelsRepo {
                 m.created_at,
                 m.updated_at,
                 m.edited_at::timestamptz AS "edited_at?",
-                m.deleted_at::timestamptz AS "deleted_at?",
-                m.suppress_link_previews
+                m.deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages m
             WHERE m.id = COALESCE(
                 (SELECT thread_id FROM comms_messages WHERE id = $1 AND channel_id = $2),
@@ -2538,7 +2516,6 @@ impl ChannelRepo for PgChannelsRepo {
             updated_at: r.updated_at,
             edited_at: r.edited_at,
             deleted_at: r.deleted_at,
-            suppress_link_previews: r.suppress_link_previews,
         }))
     }
 
@@ -2600,8 +2577,7 @@ impl ChannelRepo for PgChannelsRepo {
                 m.created_at,
                 m.updated_at,
                 m.edited_at::timestamptz AS "edited_at?",
-                m.deleted_at::timestamptz AS "deleted_at?",
-                m.suppress_link_previews
+                m.deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages m
             WHERE m.channel_id = $1
               AND m.thread_id IS NULL
@@ -2632,8 +2608,7 @@ impl ChannelRepo for PgChannelsRepo {
                 m.created_at,
                 m.updated_at,
                 m.edited_at::timestamptz AS "edited_at?",
-                m.deleted_at::timestamptz AS "deleted_at?",
-                m.suppress_link_previews
+                m.deleted_at::timestamptz AS "deleted_at?"
             FROM comms_messages m
             WHERE m.channel_id = $1
               AND m.thread_id IS NULL
@@ -2665,7 +2640,6 @@ impl ChannelRepo for PgChannelsRepo {
             updated_at: r.updated_at,
             edited_at: r.edited_at,
             deleted_at: r.deleted_at,
-            suppress_link_previews: r.suppress_link_previews,
         };
 
         let before: Vec<TopLevelMessageRow> = before_rows.into_iter().map(to_row).collect();
@@ -3295,8 +3269,7 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at,
                 thread_id,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             "#,
             message_id,
             channel_id,
@@ -3538,8 +3511,7 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at,
                 thread_id,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             "#,
             message_id,
             has_attachments,
@@ -3572,8 +3544,7 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at,
                 thread_id,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             "#,
             content,
             message_id,
@@ -3585,19 +3556,55 @@ impl ChannelRepo for PgChannelsRepo {
         mutated_message_from_row(row)
     }
 
-    async fn set_message_suppress_link_previews(
+    async fn remove_link_preview(
         &self,
         channel_id: Uuid,
         message_id: Uuid,
-        suppress: bool,
+        url: String,
     ) -> Result<MutatedMessage, Self::Err> {
-        // Deliberately leaves edited_at alone: removing a preview is not a
-        // content edit and must not surface the "edited" badge.
+        // Read-transform-write under a row lock so two removals on the same
+        // message cannot clobber each other's payload rewrite. Deliberately
+        // leaves edited_at alone: removing a preview is not a content edit
+        // and must not surface the "edited" badge.
+        let mut tx = self.pool.begin().await.context("unable to begin tx")?;
+        let current = sqlx::query_as!(
+            MutatedMessageRow,
+            r#"
+            SELECT
+                id,
+                channel_id,
+                sender_id,
+                triggered_by_user_id,
+                content,
+                created_at,
+                updated_at,
+                thread_id,
+                edited_at::timestamptz AS "edited_at?",
+                deleted_at::timestamptz AS "deleted_at?"
+            FROM comms_messages
+            WHERE id = $1 AND channel_id = $2
+            FOR UPDATE
+            "#,
+            message_id,
+            channel_id,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .context("unable to load message content")?;
+
+        let rewritten = remove_link_preview_from_content(&current.content, &url);
+        // The URL isn't in this message (or is already suppressed): skip the
+        // write so no updated_at bump or realtime event is emitted.
+        if rewritten == current.content {
+            tx.commit().await.context("unable to commit tx")?;
+            return mutated_message_from_row(current);
+        }
+
         let row = sqlx::query_as!(
             MutatedMessageRow,
             r#"
             UPDATE comms_messages
-            SET suppress_link_previews = $1, updated_at = NOW()
+            SET content = $1, updated_at = NOW()
             WHERE id = $2 AND channel_id = $3
             RETURNING
                 id,
@@ -3609,16 +3616,16 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at,
                 thread_id,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             "#,
-            suppress,
+            rewritten,
             message_id,
             channel_id,
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
-        .context("unable to update message link-preview suppression")?;
+        .context("unable to update message content")?;
+        tx.commit().await.context("unable to commit tx")?;
         mutated_message_from_row(row)
     }
 
@@ -3643,8 +3650,7 @@ impl ChannelRepo for PgChannelsRepo {
                 updated_at,
                 thread_id,
                 edited_at::timestamptz AS "edited_at?",
-                deleted_at::timestamptz AS "deleted_at?",
-                suppress_link_previews
+                deleted_at::timestamptz AS "deleted_at?"
             "#,
             message_id,
             channel_id,

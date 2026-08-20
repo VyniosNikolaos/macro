@@ -91,14 +91,17 @@ describe('internal transformer fallbacks', () => {
     ['<m-snapshot>{bad}</m-snapshot>', 'Unknown Snapshot'],
     ['<m-await>{bad}</m-await>', 'Unknown Await'],
     ['<m-link>{bad}</m-link>', 'Unknown Link'],
-  ])('falls back for malformed text transformer payload %#', async (markdown, name) => {
-    const editor = await importMarkdown(markdown);
+  ])(
+    'falls back for malformed text transformer payload %#',
+    async (markdown, name) => {
+      const editor = await importMarkdown(markdown);
 
-    editor.getEditorState().read(() => {
-      const unknown = findUnknownMention();
-      expect(unknown?.getName()).toBe(name);
-    });
-  });
+      editor.getEditorState().read(() => {
+        const unknown = findUnknownMention();
+        expect(unknown?.getName()).toBe(name);
+      });
+    }
+  );
 
   it.each([
     ['<m-document-card>{bad}</m-document-card>', 'Unknown Item'],
@@ -115,15 +118,18 @@ describe('internal transformer fallbacks', () => {
       '<m-email-thread-embed>{bad}</m-email-thread-embed>',
       'Unknown Email Thread',
     ],
-  ])('wraps malformed element transformer fallback in a paragraph %#', async (markdown, name) => {
-    const editor = await importMarkdown(markdown);
+  ])(
+    'wraps malformed element transformer fallback in a paragraph %#',
+    async (markdown, name) => {
+      const editor = await importMarkdown(markdown);
 
-    editor.getEditorState().read(() => {
-      const firstChild = $getRoot().getFirstChild();
-      expect($isParagraphNode(firstChild)).toBe(true);
+      editor.getEditorState().read(() => {
+        const firstChild = $getRoot().getFirstChild();
+        expect($isParagraphNode(firstChild)).toBe(true);
 
-      const unknown = findUnknownMention();
-      expect(unknown?.getName()).toBe(name);
-    });
-  });
+        const unknown = findUnknownMention();
+        expect(unknown?.getName()).toBe(name);
+      });
+    }
+  );
 });

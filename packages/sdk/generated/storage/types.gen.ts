@@ -317,10 +317,6 @@ export type ApiChannelContextMessage = {
      */
     sender_id: string;
     /**
-     * Whether the sender hid this message's link previews for everyone.
-     */
-    suppress_link_previews: boolean;
-    /**
      * Parent thread id for replies.
      */
     thread_id?: string | null;
@@ -486,10 +482,6 @@ export type ApiChannelMessage = {
      * Sender user id.
      */
     sender_id: string;
-    /**
-     * Whether the sender hid this message's link previews for everyone.
-     */
-    suppress_link_previews: boolean;
     /**
      * Thread metadata and preview.
      */
@@ -903,10 +895,6 @@ export type ApiThreadReply = {
      * Sender user id.
      */
     sender_id: string;
-    /**
-     * Whether the sender hid this reply's link previews for everyone.
-     */
-    suppress_link_previews: boolean;
     /**
      * When the reply was last updated.
      */
@@ -5540,10 +5528,11 @@ export type PatchMessageRequest = {
      */
     nonce?: string | null;
     /**
-     * Optionally sets whether link previews on this message are hidden
-     * for everyone ("remove preview"); `None` leaves it unchanged.
+     * Optionally removes the rich preview of one link for every participant
+     * by setting `preview: false` on the matching link node(s) in the
+     * content, server-side. Not a content edit: `edited_at` is untouched.
      */
-    suppress_link_previews?: boolean | null;
+    remove_preview_url?: string | null;
 };
 
 export type PatchProjectRequestV2 = {

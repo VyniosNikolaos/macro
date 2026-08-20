@@ -2042,11 +2042,6 @@ export const getChannelResponse = zod
               })
               .describe('Public sender identity for channel messages.'),
             sender_id: zod.string().describe('Sender user id.'),
-            suppress_link_previews: zod
-              .boolean()
-              .describe(
-                "Whether the sender hid this message's link previews for everyone."
-              ),
             thread: zod
               .object({
                 latest_reply_at: zod.iso
@@ -2135,11 +2130,6 @@ export const getChannelResponse = zod
                             'Public sender identity for channel messages.'
                           ),
                         sender_id: zod.string().describe('Sender user id.'),
-                        suppress_link_previews: zod
-                          .boolean()
-                          .describe(
-                            "Whether the sender hid this reply's link previews for everyone."
-                          ),
                         updated_at: zod.iso
                           .datetime({})
                           .describe('When the reply was last updated.'),
@@ -2423,11 +2413,11 @@ export const patchMessageBody = zod
       .nullish()
       .describe('Optional replacement mentions.'),
     nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
-    suppress_link_previews: zod
-      .boolean()
+    remove_preview_url: zod
+      .string()
       .nullish()
       .describe(
-        'Optionally sets whether link previews on this message are hidden\nfor everyone (\"remove preview\"); `None` leaves it unchanged.'
+        'Optionally removes the rich preview of one link for every participant\nby setting `preview: false` on the matching link node(s) in the\ncontent, server-side. Not a content edit: `edited_at` is untouched.'
       ),
   })
   .describe('Request to patch a channel message.');
@@ -2538,11 +2528,6 @@ export const getChannelMessagesResponse = zod
               })
               .describe('Public sender identity for channel messages.'),
             sender_id: zod.string().describe('Sender user id.'),
-            suppress_link_previews: zod
-              .boolean()
-              .describe(
-                "Whether the sender hid this message's link previews for everyone."
-              ),
             thread: zod
               .object({
                 latest_reply_at: zod.iso
@@ -2631,11 +2616,6 @@ export const getChannelMessagesResponse = zod
                             'Public sender identity for channel messages.'
                           ),
                         sender_id: zod.string().describe('Sender user id.'),
-                        suppress_link_previews: zod
-                          .boolean()
-                          .describe(
-                            "Whether the sender hid this reply's link previews for everyone."
-                          ),
                         updated_at: zod.iso
                           .datetime({})
                           .describe('When the reply was last updated.'),
@@ -2820,11 +2800,6 @@ export const postChannelMessagesResponse = zod
               })
               .describe('Public sender identity for channel messages.'),
             sender_id: zod.string().describe('Sender user id.'),
-            suppress_link_previews: zod
-              .boolean()
-              .describe(
-                "Whether the sender hid this message's link previews for everyone."
-              ),
             thread: zod
               .object({
                 latest_reply_at: zod.iso
@@ -2913,11 +2888,6 @@ export const postChannelMessagesResponse = zod
                             'Public sender identity for channel messages.'
                           ),
                         sender_id: zod.string().describe('Sender user id.'),
-                        suppress_link_previews: zod
-                          .boolean()
-                          .describe(
-                            "Whether the sender hid this reply's link previews for everyone."
-                          ),
                         updated_at: zod.iso
                           .datetime({})
                           .describe('When the reply was last updated.'),
@@ -3008,11 +2978,6 @@ export const getMessageWithContextResponse = zod
               })
               .describe('Public sender identity for channel messages.'),
             sender_id: zod.string().describe('Sender user id.'),
-            suppress_link_previews: zod
-              .boolean()
-              .describe(
-                "Whether the sender hid this message's link previews for everyone."
-              ),
             thread_id: zod
               .uuid()
               .nullish()
@@ -3096,11 +3061,6 @@ export const getThreadRepliesResponseItem = zod
       })
       .describe('Public sender identity for channel messages.'),
     sender_id: zod.string().describe('Sender user id.'),
-    suppress_link_previews: zod
-      .boolean()
-      .describe(
-        "Whether the sender hid this reply's link previews for everyone."
-      ),
     updated_at: zod.iso
       .datetime({})
       .describe('When the reply was last updated.'),

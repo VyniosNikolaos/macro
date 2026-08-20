@@ -741,7 +741,7 @@ export const storageServiceClient = {
       mentions,
       attachment_ids_to_delete,
       attachments_to_add,
-      suppress_link_previews,
+      remove_preview_url,
       nonce,
     } = args;
     return (
@@ -754,7 +754,7 @@ export const storageServiceClient = {
             mentions,
             attachment_ids_to_delete,
             attachments_to_add,
-            suppress_link_previews,
+            remove_preview_url,
             nonce,
           }),
         }
